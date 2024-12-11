@@ -1,0 +1,91 @@
+import pandas as pd
+from itertools import combinations
+
+# Function to aggregate participants for each interaction
+def aggregate_interactions(data):
+    """Aggregate rows corresponding to the same ID into a single interaction."""
+    def aggregate_func(group):
+        return pd.Series({
+            'START_TIME': group['START_TIME'].iloc[0],
+            'END_TIME': group['END_TIME'].iloc[0],
+            'SUBJECT': group['SUBJECT'].iloc[0],
+            'TAGS': list(set(tag for tags in group['TAGS'].dropna() for tag in tags.split(','))),
+            'PURPOSE': group['PURPOSE'].iloc[0],
+            'PARTICIPANTS': group['FIRMWIDE_ID'].dropna().tolist(),
+            'IS_EMPLOYEE': group['IS_EMPLOYEE'].tolist(),
+            'FUNCTIONAL_ROLES': group['FUNCTIONAL_ROLE'].tolist()
+        })
+
+    # Exclude grouping columns explicitly to avoid DeprecationWarning
+    aggregated_data = (
+        data.groupby(['ATTRIBUTE_VALUE', 'ID'], as_index=False)
+        .apply(lambda group: aggregate_func(group.drop(columns=['ATTRIBUTE_VALUE', 'ID'])))
+        .reset_index()
+    )
+    return aggregated_data
+
+# Function to extract pairwise features with bidirectional comparisons
+def extract_pairwise_features(aggregated_data, attribute_value):
+    """Extract pairwise features for all interactions within the same ATTRIBUTE_VALUE."""
+    features = []
+
+    # Filter interactions with the specified ATTRIBUTE_VALUE
+    group = aggregated_data[aggregated_data['ATTRIBUTE_VALUE'] == attribute_value]
+
+    if group.empty:
+        raise ValueError(f"No interactions found for ATTRIBUTE_VALUE: {attribute_value}")
+
+    # Generate pairwise combinations
+    pair_indices = list(combinations(group.index, 2))
+
+    for idx1, idx2 in pair_indices:
+        interaction1 = group.loc[idx1]
+        interaction2 = group.loc[idx2]
+
+        # Compare both directions: (interaction1, interaction2) and (interaction2, interaction1)
+        features.append(compare_interactions(interaction1, interaction2))
+        features.append(compare_interactions(interaction2, interaction1))
+
+    return pd.DataFrame(features)
+
+# Function to compare two interactions
+def compare_interactions(interaction1, interaction2):
+    """Compute feature comparisons between two interactions."""
+    time_diff = abs((interaction1['START_TIME'] - interaction2['START_TIME']).total_seconds() / 60)  # Time difference in minutes
+    overlap = calculate_overlap(interaction1['START_TIME'], interaction1['END_TIME'],
+                                 interaction2['START_TIME'], interaction2['END_TIME'])
+
+    features = {
+        'Interaction1_ID': interaction1['ID'],
+        'Interaction2_ID': interaction2['ID'],
+        'Time Difference': time_diff,
+        'Overlap Percentage': overlap,
+    }
+    return features
+
+# Function to calculate overlap percentage
+def calculate_overlap(start1, end1, start2, end2):
+    """Calculate the overlap percentage between two time intervals."""
+    overlap_start = max(start1, start2)
+    overlap_end = min(end1, end2)
+    overlap_duration = max(0, (overlap_end - overlap_start).total_seconds() / 60)
+    duration1 = (end1 - start1).total_seconds() / 60
+    return (overlap_duration / duration1) * 100 if duration1 > 0 else 0
+
+# Main function to process and extract features
+def main(file_path, attribute_value):
+    data = load_excel(file_path)
+    data = preprocess_data(data)
+    aggregated_data = aggregate_interactions(data)
+
+    # Ensure ATTRIBUTE_VALUE column exists in the aggregated data for filtering
+    aggregated_data['ATTRIBUTE_VALUE'] = data['ATTRIBUTE_VALUE'].values
+
+    pairwise_features = extract_pairwise_features(aggregated_data, attribute_value)
+    return pairwise_features
+
+# Example Usage
+file_path = 'your_excel_file.xlsx'  # Replace with your Excel file path
+attribute_value = 'your_attribute_value'  # Replace with a specific ATTRIBUTE_VALUE
+features = main(file_path, attribute_value)
+print(features)
