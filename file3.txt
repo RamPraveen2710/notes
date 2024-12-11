@@ -126,69 +126,105 @@ def calculate_external_matching_percentage(old_participants, new_participants):
 from collections import Counter
 
 # Function to calculate total role points for internal and external participants
-def calculate_total_role_points(is_employee, function_roles, role_weights):
+def calculate_total_role_points(is_employee, function_roles, firmwide_ids, role_weights):
     """
     Calculate total role points for internal and external participants.
     Args:
         is_employee (list): Boolean list indicating if participants are internal (True) or external (False).
         function_roles (list): List of function roles for participants.
+        firmwide_ids (list): List of firmwide IDs for participants.
         role_weights (dict): Dictionary mapping roles to their weights.
     Returns:
         tuple: Total internal and external role points.
     """
-    internal_total_points = sum(role_weights.get(role, 1) for role, is_internal in zip(function_roles, is_employee) if is_internal)
-    external_total_points = sum(role_weights.get(role, 1) for role, is_internal in zip(function_roles, is_employee) if not is_internal)
+    internal_total_points = sum(
+        role_weights.get(role, 1) 
+        for role, is_internal, firmwide_id in zip(function_roles, is_employee, firmwide_ids) if is_internal and firmwide_id
+    )
+    external_total_points = sum(
+        role_weights.get(role, 1) 
+        for role, is_internal, firmwide_id in zip(function_roles, is_employee, firmwide_ids) if not is_internal and firmwide_id
+    )
     return internal_total_points, external_total_points
 
 # Function to calculate matching role points for internal and external participants
-def calculate_matching_role_points(old_is_employee, old_function_roles, new_is_employee, new_function_roles, role_weights):
+def calculate_matching_role_points(
+    old_is_employee, old_function_roles, old_firmwide_ids, 
+    new_is_employee, new_function_roles, new_firmwide_ids, 
+    role_weights
+):
     """
-    Calculate matching role points for internal and external participants.
+    Calculate matching role points for internal and external participants based on both role and firmwide ID.
     Args:
         old_is_employee (list): Boolean list for old interaction participants' internal/external status.
         old_function_roles (list): Function roles for old interaction participants.
+        old_firmwide_ids (list): Firmwide IDs for old interaction participants.
         new_is_employee (list): Boolean list for new interaction participants' internal/external status.
         new_function_roles (list): Function roles for new interaction participants.
+        new_firmwide_ids (list): Firmwide IDs for new interaction participants.
         role_weights (dict): Dictionary mapping roles to their weights.
     Returns:
         tuple: Matching internal and external role points.
     """
-    old_roles_internal = Counter(role for role, is_internal in zip(old_function_roles, old_is_employee) if is_internal)
-    old_roles_external = Counter(role for role, is_internal in zip(old_function_roles, old_is_employee) if not is_internal)
-
-    matching_internal_points = sum(
-        role_weights.get(role, 1)
-        for role, is_internal in zip(new_function_roles, new_is_employee)
-        if is_internal and old_roles_internal[role] > 0
+    # Match internal participants
+    internal_matching_points = sum(
+        role_weights.get(new_role, 1) 
+        for new_role, new_is_internal, new_firmwide in zip(new_function_roles, new_is_employee, new_firmwide_ids)
+        if new_is_internal and 
+           any(
+               new_role == old_role and new_firmwide == old_firmwide 
+               for old_role, old_is_internal, old_firmwide in zip(old_function_roles, old_is_employee, old_firmwide_ids) 
+               if old_is_internal
+           )
     )
-    matching_external_points = sum(
-        role_weights.get(role, 1)
-        for role, is_internal in zip(new_function_roles, new_is_employee)
-        if not is_internal and old_roles_external[role] > 0
+    
+    # Match external participants
+    external_matching_points = sum(
+        role_weights.get(new_role, 1) 
+        for new_role, new_is_internal, new_firmwide in zip(new_function_roles, new_is_employee, new_firmwide_ids)
+        if not new_is_internal and 
+           any(
+               new_role == old_role and new_firmwide == old_firmwide 
+               for old_role, old_is_internal, old_firmwide in zip(old_function_roles, old_is_employee, old_firmwide_ids) 
+               if not old_is_internal
+           )
     )
-
-    return matching_internal_points, matching_external_points
+    
+    return internal_matching_points, external_matching_points
 
 # Function to calculate role matching percentages
-def calculate_role_matching_percentages(old_is_employee, old_function_roles, new_is_employee, new_function_roles, role_weights):
+def calculate_role_matching_percentages(
+    old_is_employee, old_function_roles, old_firmwide_ids, 
+    new_is_employee, new_function_roles, new_firmwide_ids, 
+    role_weights
+):
     """
-    Calculate role matching percentages for internal and external participants.
+    Calculate role matching percentages for internal and external participants based on role and firmwide ID.
     Args:
         old_is_employee (list): Boolean list for old interaction participants' internal/external status.
         old_function_roles (list): Function roles for old interaction participants.
+        old_firmwide_ids (list): Firmwide IDs for old interaction participants.
         new_is_employee (list): Boolean list for new interaction participants' internal/external status.
         new_function_roles (list): Function roles for new interaction participants.
+        new_firmwide_ids (list): Firmwide IDs for new interaction participants.
         role_weights (dict): Dictionary mapping roles to their weights.
     Returns:
         tuple: External role matching percentage, Internal role matching percentage.
     """
-    internal_total, external_total = calculate_total_role_points(new_is_employee, new_function_roles, role_weights)
+    # Calculate total role points
+    internal_total, external_total = calculate_total_role_points(new_is_employee, new_function_roles, new_firmwide_ids, role_weights)
+    
+    # Calculate matching role points
     internal_match, external_match = calculate_matching_role_points(
-        old_is_employee, old_function_roles, new_is_employee, new_function_roles, role_weights
+        old_is_employee, old_function_roles, old_firmwide_ids, 
+        new_is_employee, new_function_roles, new_firmwide_ids, 
+        role_weights
     )
 
+    # Calculate percentages
     internal_role_matching_percentage = (internal_match / internal_total * 100) if internal_total > 0 else 0
     external_role_matching_percentage = (external_match / external_total * 100) if external_total > 0 else 0
 
     return external_role_matching_percentage, internal_role_matching_percentage
+
 
