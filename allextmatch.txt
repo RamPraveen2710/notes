@@ -1,0 +1,46 @@
+# Replace blank or null values in ROLE with a default value
+    data['ROLE'] = data['ROLE'].fillna('UNKNOWN')
+
+
+'All External Matching': all_external_match,
+                'Participant Type Match': participant_type_match
+
+def calculate_all_external_matching_feature(external_matching_percentage):
+    """Calculate the all external matching feature."""
+    return 100 if external_matching_percentage == 100 else 0
+
+
+all_external_match = calculate_all_external_matching_feature(external_match)
+
+
+
+def calculate_participant_type_feature(old_roles, old_firmwide_ids, new_roles, new_firmwide_ids):
+    """
+    Calculate the Participant Type Match feature based on matching roles and Firmwide IDs.
+    Args:
+        old_roles (list): Roles of participants in the old interaction.
+        old_firmwide_ids (list): Firmwide IDs of participants in the old interaction.
+        new_roles (list): Roles of participants in the new interaction.
+        new_firmwide_ids (list): Firmwide IDs of participants in the new interaction.
+    Returns:
+        int: 100 if there's a match in role and Firmwide ID, otherwise 0.
+    """
+    # Pair roles with Firmwide IDs
+    old_participants = set(zip(old_roles, old_firmwide_ids))
+    new_participants = set(zip(new_roles, new_firmwide_ids))
+    
+    # Define roles of interest
+    matching_roles = {'INV', 'ANL', 'COR'}
+    
+    # Check for matches
+    for role, firmwide_id in new_participants:
+        if role in matching_roles and (role, firmwide_id) in old_participants:
+            return 100  # Match found
+    
+    return 0  # No match found
+
+
+participant_type_match = calculate_participant_type_feature(
+    base_interaction['ROLE'], base_interaction['FIRMWIDE_ID'],
+    interaction['ROLE'], interaction['FIRMWIDE_ID']
+)
