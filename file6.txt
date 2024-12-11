@@ -59,3 +59,82 @@ def extract_pairwise_features_for_all(data):
 
     # Convert the list of features into a DataFrame
     return pd.DataFrame(features)
+
+
+
+
+import pandas as pd
+import numpy as np
+from itertools import product
+
+# Function to preprocess the data
+def preprocess_data(data):
+    """Preprocess the data to clean and format it."""
+    data = data.copy()  # Prevent SettingWithCopyWarning
+    data.loc[:, 'START_TIME'] = pd.to_datetime(data['START_TIME'])
+    data.loc[:, 'END_TIME'] = pd.to_datetime(data['END_TIME'])
+    data.loc[:, 'FIRMWIDE_ID'] = data['FIRMWIDE_ID'].fillna(data['EMAIL_ADDRESS'])
+    data.loc[:, 'FUNCTIONAL_ROLE'] = data['FUNCTIONAL_ROLE'].fillna(data['TITLE'])
+    data.loc[:, 'FUNCTIONAL_ROLE'] = data['FUNCTIONAL_ROLE'].fillna('Default Role')
+    return data
+
+# Function to aggregate participants for each interaction
+def aggregate_interactions(data):
+    """Aggregate rows corresponding to the same ID into a single interaction."""
+    def aggregate_func(group):
+        return pd.Series({
+            'START_TIME': group['START_TIME'].iloc[0],
+            'END_TIME': group['END_TIME'].iloc[0],
+            'SUBJECT': group['SUBJECT'].iloc[0],
+            'TAGS': list(set(tag for tags in group['TAGS'].dropna() for tag in tags.split(','))),
+            'PURPOSE': group['PURPOSE'].iloc[0],
+            'PARTICIPANTS': group['FIRMWIDE_ID'].dropna().tolist(),
+            'IS_EMPLOYEE': group['IS_EMPLOYEE'].tolist(),
+            'FUNCTIONAL_ROLES': group['FUNCTIONAL_ROLE'].tolist()
+        })
+
+    return data.groupby(['ATTRIBUTE_VALUE', 'ID'], group_keys=False).apply(aggregate_func).reset_index()
+
+# Function to extract pairwise features
+def extract_pairwise_features_for_all(data):
+    """Extract pairwise features for all ATTRIBUTE_VALUEs."""
+    features = []
+
+    unique_attribute_values = data['ATTRIBUTE_VALUE'].unique()
+    print(f"Unique ATTRIBUTE_VALUEs: {unique_attribute_values}")
+
+    for attribute_value in unique_attribute_values:
+        group = data[data['ATTRIBUTE_VALUE'] == attribute_value]
+        indices = group.index.tolist()
+
+        # Generate all bidirectional pairs
+        pair_indices = [(i, j) for i, j in product(indices, repeat=2) if i != j]
+
+        for idx1, idx2 in pair_indices:
+            interaction1 = group.loc[idx1]
+            interaction2 = group.loc[idx2]
+
+            # Extract features for the pair
+            time_diff = calculate_time_difference(interaction1['START_TIME'], interaction2['START_TIME'])
+            duration_match = calculate_duration_match(
+                interaction1['START_TIME'], interaction1['END_TIME'],
+                interaction2['START_TIME'], interaction2['END_TIME']
+            )
+            overlap_percentage = calculate_overlap_percentage(
+                interaction1['START_TIME'], interaction1['END_TIME'],
+                interaction2['START_TIME'], interaction2['END_TIME']
+            )
+
+            # Add features to the list
+            features.append({
+                "ATTRIBUTE_VALUE": attribute_value,
+                "Interaction1_ID": interaction1['ID'],
+                "Interaction2_ID": interaction2['ID'],
+                "Starttime Difference": time_diff,
+                "Duration Match": duration_match,
+                "Overlap Percentage": overlap_percentage,
+                # Add other features similarly...
+            })
+
+    return pd.DataFrame(features)
+
