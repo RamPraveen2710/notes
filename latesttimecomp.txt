@@ -1,3 +1,9 @@
+data['START_TIME'] = pd.to_datetime(data['START_TIME'], errors='coerce')
+data['END_TIME'] = pd.to_datetime(data['END_TIME'], errors='coerce')
+data['ROLODEX_CREATED_TIME'] = pd.to_datetime(data['ROLODEX_CREATED_TIME'], errors='coerce')
+
+
+
 def extract_pairwise_features_with_base(data):
     """Extract pairwise features using the earliest created interaction as the base."""
     features = []
