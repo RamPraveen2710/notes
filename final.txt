@@ -1,0 +1,61 @@
+import pandas as pd
+
+# Define the weights
+feature_weights = {
+    'time_diff': 0.10,
+    'overlap': 0.08,
+    'duration': 0.05,
+    'ext_matching': 0.25,
+    'int_matching': 0.14,
+    'ext_role_matching': 0.10,
+    'int_role_matching': 0.08,
+    'comb_sub': 0.05,
+    'all_ext_matching': 0.10,
+    'participant_type': 0.05
+}
+
+# Define the maximum possible time difference (e.g., 30 minutes for your case)
+MAX_TIME_DIFF = 30
+
+def calculate_target(row, feature_weights):
+    """
+    Calculate the target value for a given row based on feature weights.
+    """
+    # Adjust time_diff to be a percentage
+    time_diff_percentage = (MAX_TIME_DIFF - row['time_diff']) / MAX_TIME_DIFF if row['time_diff'] <= MAX_TIME_DIFF else 0
+
+    # Add time_diff_percentage to the row for weighted calculation
+    weighted_sum = (
+        time_diff_percentage * feature_weights['time_diff'] +
+        row['overlap'] * feature_weights['overlap'] +
+        row['duration'] * feature_weights['duration'] +
+        row['ext_matching'] * feature_weights['ext_matching'] +
+        row['int_matching'] * feature_weights['int_matching'] +
+        row['ext_role_matching'] * feature_weights['ext_role_matching'] +
+        row['int_role_matching'] * feature_weights['int_role_matching'] +
+        row['comb_sub'] * feature_weights['comb_sub'] +
+        row['all_ext_matching'] * feature_weights['all_ext_matching'] +
+        row['participant_type'] * feature_weights['participant_type']
+    )
+    return round(weighted_sum, 4)
+
+def assign_target_and_save(input_file, output_file, feature_weights):
+    """
+    Assign target labels to the dataset and save it as a new CSV file.
+    """
+    # Load the dataset
+    df = pd.read_csv(input_file)
+
+    # Calculate the target column
+    df['Target'] = df.apply(calculate_target, axis=1, feature_weights=feature_weights)
+
+    # Save the updated dataset
+    df.to_csv(output_file, index=False)
+    print(f"Updated dataset saved to {output_file}")
+
+# Define input and output file paths
+input_file = "rolodex3.csv"
+output_file = "rolodex3_with_targets.csv"
+
+# Assign target labels and save
+assign_target_and_save(input_file, output_file, feature_weights)
