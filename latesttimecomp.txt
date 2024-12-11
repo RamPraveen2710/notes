@@ -1,0 +1,69 @@
+def extract_pairwise_features_with_base(data):
+    """Extract pairwise features using the earliest created interaction as the base."""
+    features = []
+
+    # Get unique ATTRIBUTE_VALUEs
+    unique_attribute_values = data['ATTRIBUTE_VALUE'].unique()
+
+    for attribute_value in unique_attribute_values:
+        # Filter group for current ATTRIBUTE_VALUE
+        group = data[data['ATTRIBUTE_VALUE'] == attribute_value]
+
+        # Skip if the group has only one interaction
+        if len(group) <= 1:
+            print(f"Skipping ATTRIBUTE_VALUE {attribute_value}: Only one interaction present.")
+            continue
+
+        # Identify the base interaction (earliest created time)
+        base_interaction = group.loc[group['ROLODEX_CREATED_TIME'].idxmin()]
+        base_id = base_interaction['ID']
+
+        print(f"ATTRIBUTE_VALUE: {attribute_value}, Base ID: {base_id}")
+
+        # Compare all other interactions in the group with the base
+        for _, interaction in group.iterrows():
+            if interaction['ID'] == base_id:
+                continue  # Skip comparison with itself
+
+            # Calculate pairwise features
+            time_diff = calculate_time_difference(base_interaction['START_TIME'], interaction['START_TIME'])
+            duration_match = calculate_duration_match(
+                base_interaction['START_TIME'], base_interaction['END_TIME'],
+                interaction['START_TIME'], interaction['END_TIME']
+            )
+            overlap_percentage = calculate_overlap_percentage(
+                base_interaction['START_TIME'], base_interaction['END_TIME'],
+                interaction['START_TIME'], interaction['END_TIME']
+            )
+            internal_match = calculate_internal_matching_percentage(
+                base_interaction['PARTICIPANTS'], base_interaction['IS_EMPLOYEE'],
+                interaction['PARTICIPANTS'], interaction['IS_EMPLOYEE']
+            )
+            external_match = calculate_external_matching_percentage(
+                base_interaction['PARTICIPANTS'], base_interaction['IS_EMPLOYEE'],
+                interaction['PARTICIPANTS'], interaction['IS_EMPLOYEE']
+            )
+            subject_match = calculate_subject_matching(base_interaction['SUBJECT'], interaction['SUBJECT'])
+            ext_role_match, int_role_match = calculate_role_matching_percentages(
+                base_interaction['IS_EMPLOYEE'], base_interaction['FUNCTIONAL_ROLES'],
+                interaction['IS_EMPLOYEE'], interaction['FUNCTIONAL_ROLES']
+            )
+            tag_match = calculate_tag_matching(base_interaction['TAGS'], interaction['TAGS'])
+
+            # Append features for the pair
+            features.append({
+                'Base_ID': base_id,
+                'Compared_ID': interaction['ID'],
+                'Starttime_Difference': time_diff,
+                'Duration_Match': duration_match,
+                'Overlap_Percentage': overlap_percentage,
+                'Internal_Matching': internal_match,
+                'External_Matching': external_match,
+                'Subject_Matching': subject_match,
+                'Tag_Matching': tag_match,
+                'External_Role_Matching': ext_role_match,
+                'Internal_Role_Matching': int_role_match
+            })
+
+    # Convert features list to DataFrame
+    return pd.DataFrame(features)
