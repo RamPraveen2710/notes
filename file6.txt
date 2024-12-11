@@ -1,0 +1,61 @@
+def extract_pairwise_features_for_all(data):
+    """Extract pairwise features for all ATTRIBUTE_VALUEs."""
+    features = []  # List to store features for all pairs
+
+    unique_attribute_values = data['ATTRIBUTE_VALUE'].unique()
+    print(f"Unique ATTRIBUTE_VALUEs: {unique_attribute_values}")
+
+    for attribute_value in unique_attribute_values:
+        group = data[data['ATTRIBUTE_VALUE'] == attribute_value]
+        indices = group.index.tolist()
+
+        # Generate all unique pairs (i, j) ensuring i != j
+        pair_indices = [(i, j) for i in indices for j in indices if i != j]
+
+        for idx1, idx2 in pair_indices:
+            interaction1 = group.loc[idx1]
+            interaction2 = group.loc[idx2]
+
+            # Extract features for the pair
+            time_diff = calculate_time_difference(interaction1['START_TIME'], interaction2['START_TIME'])
+            duration_match = calculate_duration_match(
+                interaction1['START_TIME'], interaction1['END_TIME'],
+                interaction2['START_TIME'], interaction2['END_TIME']
+            )
+            overlap_percentage = calculate_overlap_percentage(
+                interaction1['START_TIME'], interaction1['END_TIME'],
+                interaction2['START_TIME'], interaction2['END_TIME']
+            )
+            internal_match = calculate_internal_matching_percentage(
+                interaction1['PARTICIPANTS'], interaction1['EMPLOYEE_IND'],
+                interaction2['PARTICIPANTS'], interaction2['EMPLOYEE_IND']
+            )
+            external_match = calculate_external_matching_percentage(
+                interaction1['PARTICIPANTS'], interaction1['EMPLOYEE_IND'],
+                interaction2['PARTICIPANTS'], interaction2['EMPLOYEE_IND']
+            )
+            subject_match = calculate_subject_matching(interaction1['SUBJECT'], interaction2['SUBJECT'])
+            ext_role_match, int_role_match = calculate_role_matching_percentages(
+                interaction1['EMPLOYEE_IND'], interaction1['FUNCTIONAL_ROLES'], interaction1['PARTICIPANTS'],
+                interaction2['EMPLOYEE_IND'], interaction2['FUNCTIONAL_ROLES'], interaction2['PARTICIPANTS']
+            )
+            tag_match = calculate_tag_matching(interaction1['TAGS'], interaction2['TAGS'])
+
+            # Append features to the list
+            features.append({
+                "ATTRIBUTE_VALUE": attribute_value,
+                "Interaction1_ID": interaction1['ID'],
+                "Interaction2_ID": interaction2['ID'],
+                "Starttime Difference": time_diff,
+                "Duration Match": duration_match,
+                "Overlap Percentage": overlap_percentage,
+                "Internal Matching": internal_match,
+                "External Matching": external_match,
+                "Subject Matching": subject_match,
+                "Tag Matching": tag_match,
+                "External Role Matching": ext_role_match,
+                "Internal Role Matching": int_role_match
+            })
+
+    # Convert the list of features into a DataFrame
+    return pd.DataFrame(features)
