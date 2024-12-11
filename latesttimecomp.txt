@@ -67,3 +67,34 @@ def extract_pairwise_features_with_base(data):
 
     # Convert features list to DataFrame
     return pd.DataFrame(features)
+
+
+
+
+
+
+
+def aggregate_interactions(data):
+    """
+    Aggregate rows corresponding to the same ID into a single interaction.
+    Includes ROLODEX_CREATED_TIME and handles TAGS as a single value.
+    """
+    def aggregate_func(group):
+        return pd.Series({
+            'START_TIME': group['START_TIME'].iloc[0],
+            'END_TIME': group['END_TIME'].iloc[0],
+            'SUBJECT': group['SUBJECT'].iloc[0],
+            'TAGS': group['TAGS'].iloc[0],  # Use the first TAGS value
+            'PURPOSE': group['PURPOSE'].iloc[0],
+            'ROLODEX_CREATED_TIME': group['ROLODEX_CREATED_TIME'].iloc[0],  # Earliest created time for the interaction
+            'PARTICIPANTS': group['FIRMWIDE_ID'].dropna().tolist(),
+            'IS_EMPLOYEE': group['IS_EMPLOYEE'].tolist(),
+            'FUNCTIONAL_ROLES': group['FUNCTIONAL_ROLE'].tolist()
+        })
+
+    # Group by 'ATTRIBUTE_VALUE' and 'ID'
+    aggregated = data.groupby(['ATTRIBUTE_VALUE', 'ID'], as_index=False, group_keys=False).apply(aggregate_func)
+
+    # Reset the index for the final aggregated DataFrame
+    return aggregated.reset_index(drop=True)
+
