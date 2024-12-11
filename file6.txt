@@ -1,3 +1,33 @@
+# Function to preprocess the data
+def preprocess_data(data):
+    """Preprocess the data to clean and format it."""
+    # Convert time columns to datetime with error handling
+    data['START_TIME'] = pd.to_datetime(data['START_TIME'], errors='coerce')
+    data['END_TIME'] = pd.to_datetime(data['END_TIME'], errors='coerce')
+    data['ROLODEX_CREATED_TIME'] = pd.to_datetime(data['ROLODEX_CREATED_TIME'], errors='coerce')
+    
+    # Check for rows where datetime conversion failed
+    invalid_times = data[data[['START_TIME', 'END_TIME', 'ROLODEX_CREATED_TIME']].isna().any(axis=1)]
+    if not invalid_times.empty:
+        print("Warning: The following rows have invalid datetime formats and will be dropped:")
+        print(invalid_times)
+    
+    # Drop rows with invalid datetime values
+    data = data.dropna(subset=['START_TIME', 'END_TIME', 'ROLODEX_CREATED_TIME'])
+    
+    # Fill missing participant IDs with email if available
+    data['FIRMWIDE_ID'] = data['FIRMWIDE_ID'].fillna(data['EMAIL_ADDRESS'])
+    
+    # Replace missing functional roles or titles with a default value
+    data['FUNCTIONAL_ROLE'] = data['FUNCTIONAL_ROLE'].fillna(data['TITLE'])
+    data['FUNCTIONAL_ROLE'] = data['FUNCTIONAL_ROLE'].fillna('Default Role')
+    
+    return data
+
+
+
+
+
 def extract_pairwise_features_for_all(data):
     """Extract pairwise features for all ATTRIBUTE_VALUEs."""
     features = []  # List to store features for all pairs
