@@ -1,0 +1,153 @@
+# Function to calculate internal participant matching
+def calculate_internal_matching_percentage(old_participants, new_participants):
+    """Calculate the matching percentage for internal participants."""
+    matching_internal = 0
+    total_new_internal = 0
+    
+    for new in new_participants:
+        if new['IS_EMPLOYEE']:  # Only consider internal participants in the new interaction
+            total_new_internal += 1
+            for old in old_participants:
+                if (
+                    old['IS_EMPLOYEE'] and
+                    old['FIRMWIDE_ID'] == new['FIRMWIDE_ID']
+                ):
+                    matching_internal += 1
+                    break  # Prevent double-counting
+    
+    if total_new_internal == 0:  # Avoid division by zero
+        return 0
+    
+    return (matching_internal / total_new_internal) * 100
+
+# Function to calculate external participant matching
+def calculate_external_matching_percentage(old_participants, new_participants):
+    """Calculate the matching percentage for external participants."""
+    matching_external = 0
+    total_new_external = 0
+    
+    for new in new_participants:
+        if not new['IS_EMPLOYEE']:  # Only consider external participants in the new interaction
+            total_new_external += 1
+            for old in old_participants:
+                if (
+                    not old['IS_EMPLOYEE'] and
+                    old['FIRMWIDE_ID'] == new['FIRMWIDE_ID']
+                ):
+                    matching_external += 1
+                    break  # Prevent double-counting
+    
+    if total_new_external == 0:  # Avoid division by zero
+        return 0
+    
+    return (matching_external / total_new_external) * 100
+
+# Function to extract pairwise features with separate internal and external matching
+def extract_pairwise_features_with_separate_matching(aggregated_data, attribute_value):
+    """Extract pairwise features for all interactions within the same ATTRIBUTE_VALUE."""
+    features = []
+    group = aggregated_data[aggregated_data['ATTRIBUTE_VALUE'] == attribute_value]
+    
+    for pair in combinations(group.to_dict('records'), 2):
+        int1, int2 = pair
+        
+        time_diff = calculate_time_difference(int1['START_TIME'], int2['START_TIME'])
+        duration_match = calculate_duration_match(int1['START_TIME'], int1['END_TIME'], int2['START_TIME'], int2['END_TIME'])
+        overlap_percentage = calculate_overlap_percentage(int1['START_TIME'], int1['END_TIME'], int2['START_TIME'], int2['END_TIME'])
+        internal_match = calculate_internal_matching_percentage(int1['PARTICIPANTS'], int2['PARTICIPANTS'])
+        external_match = calculate_external_matching_percentage(int1['PARTICIPANTS'], int2['PARTICIPANTS'])
+        subject_match = calculate_subject_matching(int1['SUBJECT'], int2['SUBJECT'])
+        tag_match = calculate_tag_matching(int1['TAGS'], int2['TAGS'])
+        ext_role_match, int_role_match = calculate_role_matching_percentages(int1['PARTICIPANTS'], int2['PARTICIPANTS'])
+        
+        features.append({
+            'Time Difference': time_diff,
+            'Duration Match': duration_match,
+            'Overlap Percentage': overlap_percentage,
+            'Internal Matching': internal_match,
+            'External Matching': external_match,
+            'Subject Matching': subject_match,
+            'Tag Matching': tag_match,
+            'External Role Matching': ext_role_match,
+            'Internal Role Matching': int_role_match
+        })
+    
+    return pd.DataFrame(features)
+
+# Example Usage
+file_path = 'your_excel_file.xlsx'  # Replace with your Excel file path
+attribute_value = 'your_attribute_value'  # Replace with a specific ATTRIBUTE_VALUE
+aggregated_data = aggregate_interactions(preprocess_data(load_excel(file_path)))
+features = extract_pairwise_features_with_separate_matching(aggregated_data, attribute_value)
+print(features)
+
+
+
+
+
+
+def calculate_internal_matching_percentage(old_participants, new_participants):
+    """Calculate the percentage of matching internal participants."""
+    old_internal = {p['FIRMWIDE_ID'] for p in old_participants if p['IS_EMPLOYEE']}
+    new_internal = {p['FIRMWIDE_ID'] for p in new_participants if p['IS_EMPLOYEE']}
+    
+    if not new_internal:  # Avoid division by zero
+        return 0
+    
+    matching_internal = len(old_internal & new_internal)  # Intersection of internal participants
+    return (matching_internal / len(new_internal)) * 100
+
+def calculate_external_matching_percentage(old_participants, new_participants):
+    """Calculate the percentage of matching external participants."""
+    old_external = {p['FIRMWIDE_ID'] for p in old_participants if not p['IS_EMPLOYEE']}
+    new_external = {p['FIRMWIDE_ID'] for p in new_participants if not p['IS_EMPLOYEE']}
+    
+    if not new_external:  # Avoid division by zero
+        return 0
+    
+    matching_external = len(old_external & new_external)  # Intersection of external participants
+    return (matching_external / len(new_external)) * 100
+
+
+
+
+
+
+from collections import Counter
+
+# Function to calculate total role points for internal and external participants
+def calculate_total_role_points(participants, role_weights):
+    """Calculate total role points for internal and external participants."""
+    internal_total_points = sum(role_weights.get(p['FUNCTION_ROLE'], 1) for p in participants if p['IS_EMPLOYEE'])
+    external_total_points = sum(role_weights.get(p['FUNCTION_ROLE'], 1) for p in participants if not p['IS_EMPLOYEE'])
+    return internal_total_points, external_total_points
+
+# Function to calculate matching role points for internal and external participants
+def calculate_matching_role_points(old_participants, new_participants, role_weights):
+    """Calculate matching role points for internal and external participants."""
+    old_roles_internal = Counter(p['FUNCTION_ROLE'] for p in old_participants if p['IS_EMPLOYEE'])
+    old_roles_external = Counter(p['FUNCTION_ROLE'] for p in old_participants if not p['IS_EMPLOYEE'])
+    
+    matching_internal_points = sum(
+        role_weights.get(p['FUNCTION_ROLE'], 1) 
+        for p in new_participants 
+        if p['IS_EMPLOYEE'] and old_roles_internal[p['FUNCTION_ROLE']] > 0
+    )
+    matching_external_points = sum(
+        role_weights.get(p['FUNCTION_ROLE'], 1) 
+        for p in new_participants 
+        if not p['IS_EMPLOYEE'] and old_roles_external[p['FUNCTION_ROLE']] > 0
+    )
+    
+    return matching_internal_points, matching_external_points
+
+# Function to calculate role matching percentages
+def calculate_role_matching_percentages(old_participants, new_participants, role_weights):
+    """Calculate role matching percentages for internal and external participants."""
+    internal_total, external_total = calculate_total_role_points(new_participants, role_weights)
+    internal_match, external_match = calculate_matching_role_points(old_participants, new_participants, role_weights)
+
+    internal_role_matching_percentage = (internal_match / internal_total) * 100 if internal_total > 0 else 0
+    external_role_matching_percentage = (external_match / external_total) * 100 if external_total > 0 else 0
+
+    return external_role_matching_percentage, internal_role_matching_percentage
