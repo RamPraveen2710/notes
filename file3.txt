@@ -1,46 +1,56 @@
-# Function to calculate internal participant matching
-def calculate_internal_matching_percentage(old_participants, new_participants):
-    """Calculate the matching percentage for internal participants."""
+def calculate_internal_matching_percentage(old_firmwide_ids, old_is_employees, new_firmwide_ids, new_is_employees):
+    """
+    Calculate internal matching percentage for participants.
+    Args:
+        old_firmwide_ids: List of firmwide IDs for old interaction.
+        old_is_employees: List of is_employee flags for old interaction.
+        new_firmwide_ids: List of firmwide IDs for new interaction.
+        new_is_employees: List of is_employee flags for new interaction.
+    Returns:
+        Internal matching percentage (float).
+    """
     matching_internal = 0
-    total_new_internal = 0
+    total_new_internal = sum(1 for emp in new_is_employees if emp)  # Count internal in new interaction
     
-    for new in new_participants:
-        if new['IS_EMPLOYEE']:  # Only consider internal participants in the new interaction
-            total_new_internal += 1
-            for old in old_participants:
-                if (
-                    old['IS_EMPLOYEE'] and
-                    old['FIRMWIDE_ID'] == new['FIRMWIDE_ID']
-                ):
+    if total_new_internal == 0:
+        return 0.0  # Avoid division by zero
+
+    for i, new_id in enumerate(new_firmwide_ids):
+        if new_is_employees[i]:  # Check if new participant is internal
+            for j, old_id in enumerate(old_firmwide_ids):
+                if old_is_employees[j] and old_id == new_id:  # Match internal participant
                     matching_internal += 1
-                    break  # Prevent double-counting
-    
-    if total_new_internal == 0:  # Avoid division by zero
-        return 0
-    
+                    break  # Prevent duplicate matching
+
     return (matching_internal / total_new_internal) * 100
 
-# Function to calculate external participant matching
-def calculate_external_matching_percentage(old_participants, new_participants):
-    """Calculate the matching percentage for external participants."""
+
+def calculate_external_matching_percentage(old_firmwide_ids, old_is_employees, new_firmwide_ids, new_is_employees):
+    """
+    Calculate external matching percentage for participants.
+    Args:
+        old_firmwide_ids: List of firmwide IDs for old interaction.
+        old_is_employees: List of is_employee flags for old interaction.
+        new_firmwide_ids: List of firmwide IDs for new interaction.
+        new_is_employees: List of is_employee flags for new interaction.
+    Returns:
+        External matching percentage (float).
+    """
     matching_external = 0
-    total_new_external = 0
-    
-    for new in new_participants:
-        if not new['IS_EMPLOYEE']:  # Only consider external participants in the new interaction
-            total_new_external += 1
-            for old in old_participants:
-                if (
-                    not old['IS_EMPLOYEE'] and
-                    old['FIRMWIDE_ID'] == new['FIRMWIDE_ID']
-                ):
+    total_new_external = sum(1 for emp in new_is_employees if not emp)  # Count external in new interaction
+
+    if total_new_external == 0:
+        return 0.0  # Avoid division by zero
+
+    for i, new_id in enumerate(new_firmwide_ids):
+        if not new_is_employees[i]:  # Check if new participant is external
+            for j, old_id in enumerate(old_firmwide_ids):
+                if not old_is_employees[j] and old_id == new_id:  # Match external participant
                     matching_external += 1
-                    break  # Prevent double-counting
-    
-    if total_new_external == 0:  # Avoid division by zero
-        return 0
-    
+                    break  # Prevent duplicate matching
+
     return (matching_external / total_new_external) * 100
+
 
 # Function to extract pairwise features with separate internal and external matching
 def extract_pairwise_features_with_separate_matching(aggregated_data, attribute_value):
