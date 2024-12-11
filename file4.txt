@@ -1,0 +1,46 @@
+# Function to aggregate participants for each interaction
+def aggregate_interactions(data):
+    """Aggregate rows corresponding to the same ID into a single interaction."""
+    def aggregate_func(group):
+        return pd.Series({
+            'ATTRIBUTE_VALUE': group['ATTRIBUTE_VALUE'].iloc[0],  # Preserve ATTRIBUTE_VALUE
+            'START_TIME': group['START_TIME'].iloc[0],
+            'END_TIME': group['END_TIME'].iloc[0],
+            'SUBJECT': group['SUBJECT'].iloc[0],
+            'TAGS': list(set(tag for tags in group['TAGS'].dropna() for tag in tags.split(','))),
+            'PURPOSE': group['PURPOSE'].iloc[0],
+            'PARTICIPANTS': group['FIRMWIDE_ID'].dropna().tolist(),
+            'IS_EMPLOYEE': group['IS_EMPLOYEE'].tolist(),
+            'FUNCTIONAL_ROLES': group['FUNCTIONAL_ROLE'].tolist()
+        })
+    
+    # Group by both ATTRIBUTE_VALUE and ID to retain ATTRIBUTE_VALUE in the output
+    return data.groupby(['ATTRIBUTE_VALUE', 'ID']).apply(aggregate_func).reset_index()
+
+# Function to extract pairwise features
+def extract_pairwise_features(aggregated_data, attribute_value):
+    """Extract pairwise features for all interactions within the same ATTRIBUTE_VALUE."""
+    features = []
+    
+    # Filter by the given ATTRIBUTE_VALUE
+    group = aggregated_data[aggregated_data['ATTRIBUTE_VALUE'] == attribute_value]
+    
+    if group.empty:
+        raise ValueError(f"No interactions found for ATTRIBUTE_VALUE: {attribute_value}")
+    
+    # Example: Process the group to extract features (placeholder)
+    for idx1, idx2 in combinations(group.index, 2):
+        interaction1 = group.iloc[idx1]
+        interaction2 = group.iloc[idx2]
+        
+        # Example feature: Time difference
+        time_diff = abs((interaction1['START_TIME'] - interaction2['START_TIME']).total_seconds() / 60)
+        
+        # Add to features
+        features.append({
+            'Interaction1': interaction1['ID'],
+            'Interaction2': interaction2['ID'],
+            'Time Difference': time_diff
+        })
+    
+    return pd.DataFrame(features)
