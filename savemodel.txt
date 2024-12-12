@@ -1,31 +1,21 @@
-from skl2onnx import convert_sklearn
-from skl2onnx.common.data_types import FloatTensorType
 import xgboost as xgb
-import pandas as pd
+import onnxmltools
+from skl2onnx.common.data_types import FloatTensorType
 
-X = data[["time_diff", "internal_match", "external_match"]]  # Features
-y = data["target"]  # Target
+# Assuming 'data' is your DataFrame
+X = data[[...]]  # Replace with your feature columns
+y = data["target"]  # Replace with your target column
 
 # Train the XGBoost model
 model = xgb.XGBRegressor()
 model.fit(X, y)
 
-# Update feature names to follow the 'f%d' pattern
-model.get_booster().feature_names = [f"f{i}" for i in range(X.shape[1])]
-
-# Define the input shape
+# Convert the model to ONNX using onnxmltools
 initial_type = [("float_input", FloatTensorType([None, X.shape[1]]))]
-
-# Convert the XGBoost model to ONNX format with target opset for ai.onnx.ml
-onnx_model = convert_sklearn(
-    model,
-    initial_types=initial_type,
-    options={id(model): {"zipmap": False}},  # Explicitly set 'zipmap' to False
-    target_opset={"": 12, "ai.onnx.ml": 3}  # General opset 12, ai.onnx.ml opset 3
-)
+onnx_model = onnxmltools.convert_xgboost(model, initial_types=initial_type)
 
 # Save the ONNX model
-with open("xgb_model1.onnx", "wb") as f:
+with open("xgb_model.onnx", "wb") as f:
     f.write(onnx_model.SerializeToString())
 
 print("Model saved as xgb_model.onnx")
