@@ -1,3 +1,84 @@
+Managing Director | Managing Director, Wealth Mgmt
+
+Firm Board of Directors
+
+Executive Director
+
+Advisory Director
+
+Director, Wealth Mgmt
+
+Assistant Vice President
+
+Associate Vice President
+
+First Vice President
+
+Senior Vice President
+
+Vice President
+
+Second Vice President
+
+Senior Advisor
+
+Professional
+
+Default
+
+
+
+Chief Executive Officer
+
+Chief Financial Officer
+
+Chief Operating Officer
+
+Chief Operations Officer
+
+Chief Information Officer
+
+Chief Investment Officer
+
+Chief Administrative Officer
+
+Chief Technology Officer
+
+Chief Risk Officer
+
+Chief Medical Officer
+
+Board Member
+
+Non-Executive Board Member
+
+Managing Director
+
+Exective Director
+
+President
+
+Director
+
+Vice President
+
+Vice Chairman
+
+Treasurer
+
+Partner
+
+Assistant
+
+Analyst
+
+Broker
+
+Trader
+
+Default
+
+
 from collections import Counter
 
 def calculate_role_commonality_score_with_firmwide_id(
