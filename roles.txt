@@ -1,20 +1,23 @@
 from collections import Counter
 
-def calculate_role_commonality_score_with_firmwide_id(old_participants, new_participants, role_weights):
+def calculate_role_commonality_score_with_firmwide_id(
+    old_participants, new_participants, internal_role_weights, external_role_weights
+):
     """
     Calculate role commonality scores for internal and external participants, considering firmwide ID and role.
 
     Parameters:
     - old_participants: Dictionary of participants in the old interaction.
     - new_participants: Dictionary of participants in the new interaction.
-    - role_weights: Dictionary of weights for each functional role.
+    - internal_role_weights: Dictionary of weights for internal functional roles.
+    - external_role_weights: Dictionary of weights for external functional roles.
 
     Returns:
     - external_commonality_score: Commonality score for external participants.
     - internal_commonality_score: Commonality score for internal participants.
     """
-    def get_role_firmwide_pairs(participants, is_internal):
-        """Extract a Counter of (firmwide_id, role) pairs for internal or external participants."""
+    def get_role_firmwide_pairs(participants, is_internal, role_weights):
+        """Extract a Counter of (firmwide_id, role_weight) pairs for internal or external participants."""
         return Counter(
             (fw_id, role_weights.get(role, role_weights['Default']))
             for fw_id, role, is_employee in zip(
@@ -23,13 +26,13 @@ def calculate_role_commonality_score_with_firmwide_id(old_participants, new_part
             if is_employee == is_internal
         )
     
-    # Get (firmwide_id, role) pairs for internal and external participants
-    old_internal_pairs = get_role_firmwide_pairs(old_participants, True)
-    old_external_pairs = get_role_firmwide_pairs(old_participants, False)
-    new_internal_pairs = get_role_firmwide_pairs(new_participants, True)
-    new_external_pairs = get_role_firmwide_pairs(new_participants, False)
+    # Get (firmwide_id, role_weight) pairs for internal and external participants
+    old_internal_pairs = get_role_firmwide_pairs(old_participants, True, internal_role_weights)
+    old_external_pairs = get_role_firmwide_pairs(old_participants, False, external_role_weights)
+    new_internal_pairs = get_role_firmwide_pairs(new_participants, True, internal_role_weights)
+    new_external_pairs = get_role_firmwide_pairs(new_participants, False, external_role_weights)
 
-    # Calculate the union and intersection for internal roles
+    # Internal commonality: Intersection and union
     internal_intersection = old_internal_pairs & new_internal_pairs
     internal_union = old_internal_pairs | new_internal_pairs
     internal_commonality_score = (
@@ -38,7 +41,7 @@ def calculate_role_commonality_score_with_firmwide_id(old_participants, new_part
         if sum(weight for _, weight in internal_union.keys()) > 0 else 0
     )
 
-    # Calculate the union and intersection for external roles
+    # External commonality: Intersection and union
     external_intersection = old_external_pairs & new_external_pairs
     external_union = old_external_pairs | new_external_pairs
     external_commonality_score = (
@@ -48,6 +51,7 @@ def calculate_role_commonality_score_with_firmwide_id(old_participants, new_part
     )
 
     return external_commonality_score, internal_commonality_score
+
 
 
 
@@ -67,7 +71,8 @@ ext_role_commonality_score, int_role_commonality_score = calculate_role_commonal
         'FUNCTIONAL_ROLE': int2['FUNCTIONAL_ROLES'],
         'IS_EMPLOYEE': int2['IS_EMPLOYEE']
     },
-    role_weights=role_weights
+    internal_role_weights=internal_role_weights,
+    external_role_weights=external_role_weights
 )
 
 features.append({
@@ -83,3 +88,32 @@ features.append({
     'All External Matching': all_external_match,
     'Participant Type Match': participant_type_match,
 })
+
+
+
+
+
+
+
+
+
+
+# Example role weights
+internal_role_weights = {
+    'Managing Director': 10,
+    'Firm Board of Directors': 10,
+    'Executive Director': 8,
+    'Vice President': 5,
+    'Associate Vice President': 5,
+    'Default': 3
+}
+
+external_role_weights = {
+    'CEO': 10,
+    'CFO': 8,
+    'COO': 8,
+    'VP': 4,
+    'Director': 4,
+    'Analyst': 3,
+    'Default': 2
+}
