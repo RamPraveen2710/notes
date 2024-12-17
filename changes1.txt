@@ -35,6 +35,108 @@ def preprocess_data(data):
 
 
 
+from collections import Counter
+
+def calculate_participants_features(old_participants, old_roles, old_is_employee,
+                                    new_participants, new_roles, new_is_employee,
+                                    internal_role_weights, external_role_weights, role_threshold=10):
+    """
+    Calculate matching percentage and overlap of participants for internal and external participants separately.
+    Parameters:
+    - old_participants: List of participants (firmwide IDs) in the old interaction.
+    - old_roles: List of roles in the old interaction.
+    - old_is_employee: List of bools indicating internal participants in the old interaction.
+    - new_participants: List of participants (firmwide IDs) in the new interaction.
+    - new_roles: List of roles in the new interaction.
+    - new_is_employee: List of bools indicating internal participants in the new interaction.
+    - internal_role_weights: Role weights specific to internal participants.
+    - external_role_weights: Role weights specific to external participants.
+    - role_threshold: Weight threshold for ignoring non-matching participants.
+
+    Returns:
+    - internal_match_percentage, external_match_percentage
+    - internal_overlap, external_overlap
+    """
+    def get_matching_percentage(old_data, new_data):
+        """Calculate matching percentage based on (firmwide_id, role)."""
+        matches = len(set(old_data) & set(new_data))
+        total_old = len(old_data)
+        return (matches / total_old) * 100 if total_old > 0 else 0
+
+    def get_overlap_percentage(old_data, new_data, threshold):
+        """
+        Calculate overlap percentage while ignoring high-role-weight non-matching participants.
+        """
+        # Filter out unmatched new participants with high role weight
+        old_fw_ids_roles = set((fw_id, role) for fw_id, role, _ in old_data)
+        filtered_new = [(fw_id, role) for fw_id, role, weight in new_data
+                        if (fw_id, role) in old_fw_ids_roles or weight <= threshold]
+
+        total_union = len(set(old_fw_ids_roles) | set(filtered_new))
+        intersection = len(set(old_fw_ids_roles) & set(filtered_new))
+
+        return (intersection / total_union) * 100 if total_union > 0 else 0
+
+    def prepare_data(participants, roles, is_employee, is_internal, role_weights):
+        """Prepare combined (firmwide_id, role, weight) data for internal/external participants."""
+        return [(fw_id, role, role_weights.get(role, 1))
+                for fw_id, role, emp in zip(participants, roles, is_employee)
+                if emp == is_internal]
+
+    # Prepare data for internal participants
+    old_internal_data = prepare_data(old_participants, old_roles, old_is_employee, True, internal_role_weights)
+    new_internal_data = prepare_data(new_participants, new_roles, new_is_employee, True, internal_role_weights)
+
+    # Prepare data for external participants
+    old_external_data = prepare_data(old_participants, old_roles, old_is_employee, False, external_role_weights)
+    new_external_data = prepare_data(new_participants, new_roles, new_is_employee, False, external_role_weights)
+
+    # Internal Features
+    internal_match_percentage = get_matching_percentage(
+        [(fw_id, role) for fw_id, role, _ in old_internal_data],
+        [(fw_id, role) for fw_id, role, _ in new_internal_data]
+    )
+    internal_overlap = get_overlap_percentage(old_internal_data, new_internal_data, role_threshold)
+
+    # External Features
+    external_match_percentage = get_matching_percentage(
+        [(fw_id, role) for fw_id, role, _ in old_external_data],
+        [(fw_id, role) for fw_id, role, _ in new_external_data]
+    )
+    external_overlap = get_overlap_percentage(old_external_data, new_external_data, role_threshold)
+
+    return internal_match_percentage, external_match_percentage, internal_overlap, external_overlap
+
+
+# Example Usage:
+internal_role_weights = {
+    'MD': 10, 'VP': 8, 'Analyst': 3, 'Manager': 5, 'Default': 1
+}
+
+external_role_weights = {
+    'CEO': 10, 'CFO': 8, 'COO': 8, 'MD': 6, 'VP': 4, 'Analyst': 3, 'Default': 1
+}
+
+# Example data
+old_participants = ['P1', 'P2', 'P3', 'P4']
+old_roles = ['CEO', 'CFO', 'COO', 'Analyst']
+old_is_employee = [True, True, False, False]  # True = internal, False = external
+
+new_participants = ['P1', 'P3', 'P5']
+new_roles = ['CEO', 'COO', 'MD']
+new_is_employee = [True, False, False]
+
+# Calculate Features
+internal_match, external_match, internal_overlap, external_overlap = calculate_participants_features(
+    old_participants, old_roles, old_is_employee,
+    new_participants, new_roles, new_is_employee,
+    internal_role_weights, external_role_weights, role_threshold=10
+)
+
+print(f"Internal Match Percentage: {internal_match:.2f}%")
+print(f"Internal Overlap Percentage: {internal_overlap:.2f}%")
+print(f"External Match Percentage: {external_match:.2f}%")
+print(f"External Overlap Percentage: {external_overlap:.2f}%")
 
 
 
