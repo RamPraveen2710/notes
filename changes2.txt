@@ -1,0 +1,92 @@
+def calculate_role_matching_features(old_participants, old_roles, old_is_employee,
+                                     new_participants, new_roles, new_is_employee,
+                                     internal_role_weights, external_role_weights, role_threshold=8):
+    """
+    Calculate role matching percentages for internal and external participants separately.
+    
+    Parameters:
+    - old_participants: List of participants (firmwide IDs) in the old interaction.
+    - old_roles: List of roles in the old interaction.
+    - old_is_employee: List of bools indicating internal participants in the old interaction.
+    - new_participants: List of participants (firmwide IDs) in the new interaction.
+    - new_roles: List of roles in the new interaction.
+    - new_is_employee: List of bools indicating internal participants in the new interaction.
+    - internal_role_weights: Dictionary of weights for internal participant roles.
+    - external_role_weights: Dictionary of weights for external participant roles.
+    - role_threshold: Weight threshold for ignoring non-matching participants.
+
+    Returns:
+    - internal_role_match_percentage, external_role_match_percentage
+    """
+    def prepare_data(participants, roles, is_employee, is_internal, role_weights):
+        """Prepare combined (firmwide_id, role, weight) data for internal/external participants."""
+        return [(fw_id, role, role_weights.get(role, 1))
+                for fw_id, role, emp in zip(participants, roles, is_employee)
+                if emp == is_internal]
+
+    def calculate_matching_points(old_data, new_data, threshold):
+        """
+        Calculate the role matching percentage.
+        Numerator: Matching role weights.
+        Denominator: Total union role weights, excluding non-matching participants from the new interaction
+                     if their role weight > threshold.
+        """
+        old_fw_roles = set((fw_id, role) for fw_id, role, _ in old_data)
+        new_fw_roles = set((fw_id, role) for fw_id, role, _ in new_data)
+
+        # Calculate matching role weights
+        matching_points = sum(weight for fw_id, role, weight in old_data if (fw_id, role) in new_fw_roles)
+
+        # Calculate union role weights
+        union_points = sum(weight for fw_id, role, weight in old_data)  # Total weight from old interaction
+        union_points += sum(weight for fw_id, role, weight in new_data
+                            if (fw_id, role) in old_fw_roles or weight <= threshold)  # Add new participants
+
+        return matching_points, union_points
+
+    # Prepare data for internal participants
+    old_internal_data = prepare_data(old_participants, old_roles, old_is_employee, True, internal_role_weights)
+    new_internal_data = prepare_data(new_participants, new_roles, new_is_employee, True, internal_role_weights)
+
+    # Prepare data for external participants
+    old_external_data = prepare_data(old_participants, old_roles, old_is_employee, False, external_role_weights)
+    new_external_data = prepare_data(new_participants, new_roles, new_is_employee, False, external_role_weights)
+
+    # Internal Role Matching
+    internal_matching_points, internal_union_points = calculate_matching_points(old_internal_data, new_internal_data, role_threshold)
+    internal_role_match_percentage = (internal_matching_points / internal_union_points) * 100 if internal_union_points > 0 else 0
+
+    # External Role Matching
+    external_matching_points, external_union_points = calculate_matching_points(old_external_data, new_external_data, role_threshold)
+    external_role_match_percentage = (external_matching_points / external_union_points) * 100 if external_union_points > 0 else 0
+
+    return internal_role_match_percentage, external_role_match_percentage
+
+
+# Example Usage:
+internal_role_weights = {
+    'MD': 10, 'VP': 8, 'Analyst': 3, 'Manager': 5, 'Default': 1
+}
+
+external_role_weights = {
+    'CEO': 10, 'CFO': 8, 'COO': 8, 'MD': 6, 'VP': 4, 'Analyst': 3, 'Default': 1
+}
+
+# Example data
+old_participants = ['P1', 'P2', 'P3', 'P4']
+old_roles = ['CEO', 'CFO', 'COO', 'Analyst']
+old_is_employee = [True, True, False, False]  # True = internal, False = external
+
+new_participants = ['P1', 'P3', 'P5']
+new_roles = ['CEO', 'COO', 'MD']
+new_is_employee = [True, False, False]
+
+# Calculate Features
+internal_role_match, external_role_match = calculate_role_matching_features(
+    old_participants, old_roles, old_is_employee,
+    new_participants, new_roles, new_is_employee,
+    internal_role_weights, external_role_weights, role_threshold=8
+)
+
+print(f"Internal Role Match Percentage: {internal_role_match:.2f}%")
+print(f"External Role Match Percentage: {external_role_match:.2f}%")
