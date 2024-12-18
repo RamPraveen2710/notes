@@ -1,0 +1,136 @@
+import pandas as pd
+from datetime import timedelta
+
+# Preprocessing function with role assignment logic
+def preprocess_data(data):
+    """
+    Preprocess the data to clean and format it, and assign roles for internal and external participants.
+    """
+    data = data.copy()
+
+    # Convert time columns to datetime with error handling
+    data['START_TIME'] = pd.to_datetime(data['START_TIME'], errors='coerce')
+    data['END_TIME'] = pd.to_datetime(data['END_TIME'], errors='coerce')
+    data['ROLODEX_CREATED_TIME'] = pd.to_datetime(data['ROLODEX_CREATED_TIME'], errors='coerce')
+
+    # Drop rows with invalid datetime values
+    data = data.dropna(subset=['START_TIME', 'END_TIME', 'ROLODEX_CREATED_TIME'])
+
+    # Fill missing participant IDs with email if available
+    data['FIRMWIDE_ID'] = data['FIRMWIDE_ID'].fillna(data['EMAIL_ADDRESS'])
+
+    # Assign roles based on internal/external logic
+    def assign_roles(row):
+        if row['IS_EMPLOYEE']:  # Internal Participants
+            return row['TITLE'] if pd.notna(row['TITLE']) else (
+                row['FUNCTIONAL_ROLE'] if pd.notna(row['FUNCTIONAL_ROLE']) else 'Default Role'
+            )
+        else:  # External Participants
+            return row['FUNCTIONAL_ROLE'] if pd.notna(row['FUNCTIONAL_ROLE']) else (
+                row['TITLE'] if pd.notna(row['TITLE']) else 'Default Role'
+            )
+    data['ROLE'] = data.apply(assign_roles, axis=1)
+
+    return data
+
+# Aggregation function
+def aggregate_interactions(data):
+    """
+    Aggregate rows corresponding to the same ID into a single interaction.
+    """
+    def aggregate_func(group):
+        return pd.Series({
+            'START_TIME': group['START_TIME'].iloc[0],
+            'END_TIME': group['END_TIME'].iloc[0],
+            'ROLODEX_CREATED_TIME': group['ROLODEX_CREATED_TIME'].iloc[0],
+            'PARTICIPANTS': group['FIRMWIDE_ID'].tolist(),
+            'ROLES': group['ROLE'].tolist(),
+            'IS_EMPLOYEE': group['IS_EMPLOYEE'].tolist()
+        })
+
+    return data.groupby('ID', as_index=False).apply(aggregate_func)
+
+# Pairwise feature extraction
+def extract_pairwise_features(aggregated_data, time_window=15):
+    """
+    Extract pairwise features for all interactions within the time window (-15 to +15 minutes)
+    based on the aggregated interaction data.
+    """
+    features = []
+
+    for i, row in aggregated_data.iterrows():
+        # Define the time window
+        start_window = row['START_TIME'] - timedelta(minutes=time_window)
+        end_window = row['START_TIME'] + timedelta(minutes=time_window)
+
+        # Filter interactions within the time window
+        potential_matches = aggregated_data[
+            (aggregated_data['START_TIME'] >= start_window) &
+            (aggregated_data['START_TIME'] <= end_window) &
+            (aggregated_data.index != i)  # Exclude self-comparison
+        ]
+
+        # Compare the current interaction with all matching interactions
+        for _, match in potential_matches.iterrows():
+            # Calculate features
+            time_diff = abs((row['START_TIME'] - match['START_TIME']).total_seconds() / 60.0)  # Minutes
+            duration_match = calculate_duration_match(row['START_TIME'], row['END_TIME'],
+                                                      match['START_TIME'], match['END_TIME'])
+            overlap_percentage = calculate_overlap_percentage(row['START_TIME'], row['END_TIME'],
+                                                              match['START_TIME'], match['END_TIME'])
+            internal_match, external_match, internal_overlap, external_overlap = calculate_participants_features(
+                old_participants=row['PARTICIPANTS'],
+                old_roles=row['ROLES'],
+                old_is_employee=row['IS_EMPLOYEE'],
+                new_participants=match['PARTICIPANTS'],
+                new_roles=match['ROLES'],
+                new_is_employee=match['IS_EMPLOYEE'],
+                role_weights=internal_role_weights  # or external_role_weights as needed
+            )
+
+            # Append the features
+            features.append({
+                'Interaction_1': row['ID'],
+                'Interaction_2': match['ID'],
+                'Time Difference': time_diff,
+                'Duration Match': duration_match,
+                'Overlap Percentage': overlap_percentage,
+                'Internal Matching Percentage': internal_match,
+                'External Matching Percentage': external_match,
+                'Internal Overlap Percentage': internal_overlap,
+                'External Overlap Percentage': external_overlap
+            })
+
+    return pd.DataFrame(features)
+
+# Feature calculation helper functions
+def calculate_duration_match(start1, end1, start2, end2):
+    """Calculate duration match as the ratio of shorter to longer duration."""
+    duration1 = (end1 - start1).total_seconds()
+    duration2 = (end2 - start2).total_seconds()
+    return min(duration1, duration2) / max(duration1, duration2) * 100
+
+def calculate_overlap_percentage(start1, end1, start2, end2):
+    """Calculate overlap percentage."""
+    overlap_start = max(start1, start2)
+    overlap_end = min(end1, end2)
+    overlap_duration = max(0, (overlap_end - overlap_start).total_seconds())
+    total_duration = (end1 - start1).total_seconds()
+    return (overlap_duration / total_duration) * 100 if total_duration > 0 else 0
+
+# Main script
+file_path = "interactions_data.xlsx"  # Replace with your file path
+data = pd.read_excel(file_path)
+
+# Preprocess data
+data = preprocess_data(data)
+
+# Aggregate data by interaction ID
+aggregated_data = aggregate_interactions(data)
+
+# Extract features
+features = extract_pairwise_features(aggregated_data, time_window=15)
+
+# Save features to CSV
+features.to_csv("interaction_features.csv", index=False)
+print("Feature extraction completed and saved to interaction_features.csv")
