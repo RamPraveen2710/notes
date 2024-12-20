@@ -1,0 +1,65 @@
+def extract_pairwise_features(aggregated_data, time_window=15):
+    """
+    Extract pairwise features for all interactions within the time window (-15 to +15 minutes)
+    based on the aggregated interaction data, ensuring at least one participant matches.
+    """
+    # Sort the data by START_TIME
+    aggregated_data = aggregated_data.sort_values(by='START_TIME').reset_index(drop=True)
+
+    features = []
+
+    for i, row in aggregated_data.iterrows():
+        # Define the time window
+        start_window = row['START_TIME'] - timedelta(minutes=time_window)
+        end_window = row['START_TIME'] + timedelta(minutes=time_window)
+
+        # Filter interactions within the time window
+        potential_matches = aggregated_data[
+            (aggregated_data['START_TIME'] >= start_window) &
+            (aggregated_data['START_TIME'] <= end_window) &
+            (aggregated_data.index != i)  # Exclude self-comparison
+        ]
+
+        # Further filter to ensure at least one participant matches
+        potential_matches = potential_matches[
+            potential_matches['PARTICIPANTS'].apply(
+                lambda participants: len(set(row['PARTICIPANTS']) & set(participants)) > 0
+            )
+        ]
+
+        # Compare the current interaction with all matching interactions
+        for _, match in potential_matches.iterrows():
+            # Ensure 'row' is the base interaction
+            base_interaction = row
+            comparison_interaction = match
+
+            # Calculate features
+            time_diff = abs((base_interaction['START_TIME'] - comparison_interaction['START_TIME']).total_seconds() / 60.0)  # Minutes
+            duration_match = calculate_duration_match(base_interaction['START_TIME'], base_interaction['END_TIME'],
+                                                      comparison_interaction['START_TIME'], comparison_interaction['END_TIME'])
+            overlap_percentage = calculate_overlap_percentage(base_interaction['START_TIME'], base_interaction['END_TIME'],
+                                                              comparison_interaction['START_TIME'], comparison_interaction['END_TIME'])
+            internal_match, external_match, internal_overlap, external_overlap = calculate_participants_features(
+                old_participants=base_interaction['PARTICIPANTS'],
+                old_roles=base_interaction['ROLES'],
+                old_is_employee=base_interaction['IS_EMPLOYEE'],
+                new_participants=comparison_interaction['PARTICIPANTS'],
+                new_roles=comparison_interaction['ROLES'],
+                new_is_employee=comparison_interaction['IS_EMPLOYEE'],
+                role_weights=role_weights  # Use appropriate internal/external weights
+            )
+
+            # Append the features
+            features.append({
+                'Base Interaction': base_interaction['ID'],
+                'Compared Interaction': comparison_interaction['ID'],
+                'Time Difference': time_diff,
+                'Duration Match': duration_match,
+                'Overlap Percentage': overlap_percentage,
+                'Internal Matching Percentage': internal_match,
+                'External Matching Percentage': external_match,
+                'Internal Overlap Percentage': internal_overlap,
+                'External Overlap Percentage': external_overlap
+            })
+
+    return pd.DataFrame(features)
