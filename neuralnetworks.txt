@@ -1,0 +1,88 @@
+import tensorflow as tf
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Dense, Dropout, BatchNormalization
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
+import pandas as pd
+import numpy as np
+
+# Load your data
+data = pd.read_csv("your_dataset.csv")  # Replace with your dataset
+
+# Split features and target
+X = data.drop(columns=["target"])
+y = data["target"]
+
+# Normalize the features
+scaler = MinMaxScaler()
+X_scaled = scaler.fit_transform(X)
+
+# Split data into training and testing sets
+X_train, X_test, y_train, y_test = train_test_split(X_scaled, y, test_size=0.2, random_state=42)
+
+# Build the Neural Network
+model = Sequential([
+    Dense(64, activation='relu', input_shape=(X_train.shape[1],)),
+    BatchNormalization(),
+    Dropout(0.2),
+    Dense(32, activation='relu'),
+    BatchNormalization(),
+    Dropout(0.2),
+    Dense(1, activation='sigmoid')  # Use 'linear' for regression
+])
+
+# Compile the model
+model.compile(optimizer='adam', loss='mse', metrics=['mae'])
+
+# Train the model
+history = model.fit(X_train, y_train, epochs=50, batch_size=32, validation_split=0.2, verbose=1)
+
+# Evaluate the model
+results = model.evaluate(X_test, y_test)
+print("Test Loss and MAE:", results)
+
+# Evaluation Metrics
+y_pred = model.predict(X_test)
+rmse = np.sqrt(mean_squared_error(y_test, y_pred))
+mae = mean_absolute_error(y_test, y_pred)
+r2 = r2_score(y_test, y_pred)
+
+print(f"RMSE: {rmse}")
+print(f"MAE: {mae}")
+print(f"R² Score: {r2}")
+
+# Function to manually predict values
+def predict_manual(model, scaler, input_features):
+    """
+    Predict the output for manually entered feature values.
+
+    Args:
+    - model: Trained TensorFlow model.
+    - scaler: Fitted MinMaxScaler for feature scaling.
+    - input_features: List or numpy array of input features.
+
+    Returns:
+    - Predicted value (probability).
+    """
+    # Ensure the input is a 2D array for prediction
+    input_scaled = scaler.transform([input_features])
+    prediction = model.predict(input_scaled)
+    return prediction[0][0]
+
+# Example Usage of Predict Function
+manual_features = [5, 90, 70, 85, 80, 75, 70, 65, 95, 50]  # Replace with your feature values
+predicted_value = predict_manual(model, scaler, manual_features)
+print("Predicted Value for Manual Input:", predicted_value)
+
+# Visualization of Loss
+import matplotlib.pyplot as plt
+
+plt.figure(figsize=(10, 6))
+plt.plot(history.history['loss'], label='Training Loss')
+plt.plot(history.history['val_loss'], label='Validation Loss')
+plt.title('Loss vs. Epochs')
+plt.xlabel('Epochs')
+plt.ylabel('Loss')
+plt.legend()
+plt.show()
