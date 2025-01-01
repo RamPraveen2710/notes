@@ -1,0 +1,8 @@
+# Save unique values to a text file
+distinct_values = df['Column2'].unique()
+with open('distinct_values.txt', 'w') as f:
+    for value in distinct_values:
+        f.write(f"{value}\n")
+
+# Save as a CSV file
+distinct_values_df.to_csv('distinct_values.csv', index=False)
