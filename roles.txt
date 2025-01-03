@@ -57,4 +57,93 @@ Why Role matching :
 	
 
 
+How the target label been calcualted 
+
+Why Use the Weighted Approach?
+Ensures Consistency:
+* Weighted labels ensure consistent label assignment across the dataset, based on measurable criteria.Reduces subjectivity compared to manually assigned labels.
+Incorporates Feature Relationships:
+*Weights reflect the relative importance of features in determining duplication probability.
+Example: External matching may have more influence than time difference, which is captured in the weights.
+Scales with Dataset Size:
+
+*Manually assigning labels for large datasets is impractical and error-prone.
+*Weighted calculations automate label assignment, saving time and ensuring scalability.
+Provides a Generalized Baseline:
+
+****Weighted labels serve as a baseline for training, ensuring the model learns patterns aligned with domain knowledge.
+
+
+Draw Backs of Manual Labeling for data points: 
+
+* Time-Consuming: For large datasets, manual labeling is slow and resource-intensive.
+
+* Subjectivity: Labels are prone to human bias, leading to inconsistencies in the dataset.
+ Example: One expert might assign 0.7 probability; another might assign 0.5 for the same interaction.
+* Limited Feature Interaction: Manual labels may fail to account for complex relationships between features (e.g., interaction between participant overlap and subject matching).
+* Scalability:Manual labeling cannot scale efficiently for datasets with millions of rows.
+
+
+Why XGBoost Was Chosen
+
+The dataset involves tabular features.XGBoost excels at capturing relationships and patterns in tabular data better than other algorithms 
+XGBoost provides feature importance scores, allowing to understand how features contribute to the predictions.
+The model captures complex feature interactions (e.g., time overlap combined with role matching) that are difficult to encode with simple rules.
+XGBoost is less sensitive to noise and missing data, ensuring reliable predictions even in real-world messy datasets.
+
+Difference Between Manual Probability Calculation vs. Machine Learning Prediction
+
+Manual Probability Calculation
+
+*Each feature contributes a specific weight toward the final probability.
+*The probability is determined solely by multiplying the feature values by their respective weights and summing the results.
+
+Deterministic: Always produces the same result for the same inputs.
+No Adaptability: Cannot dynamically adjust to unseen patterns or relationships.
+No Feature Interactions: Treats features as independent and does not capture interactions.
+
+
+Machine Learning Prediction
+
+
+As The model is trained on historical data and learns relationships between features and the target probability.
+
+Dynamic and Adaptive: Can adjust predictions based on unseen patterns in data.
+Feature Interactions: Captures non-linear and interactive effects among features.
+Generalization: Adapts to diverse real-world scenarios better than manual calculations.
+
+
+
+Example 
+
+It also learns interactions, e.g., if internal matching is low but external matching is high, the probability increases slightly.
+
+
+Model uses decision trees (in XGBoost) to navigate combinations of feature values.
+
+It predicts a probability of 
+0.82
+0.82, higher than the manual calculation because it recognizes an interaction between "External Matching" and "Role Matching (External)" that the manual approach misses.
+
+
+
+Advantages of Machine Learning
+Dynamic Adjustments:
+ML considers all features holistically. For instance, a high external matching and high overlap might increase the probability beyond the manual calculation.
+Captures Non-Linearity:
+Features like time difference may have a diminishing effect as they increase, which is hard to encode in manual calculations.
+Generalization:
+ML adapts better to edge cases and complex patterns that manual weights cannot anticipate.
+
+
+
+
+how the machine learning model predicts the output:
+
+If the external matching is high (e.g., 90%) and the overlap is moderate (e.g., 60%), the machine learning model can dynamically increase the predicted probability, understanding that external matching plays a stronger role in these scenarios.
+Edge cases, such as interactions with extreme values or unique combinations, are poorly handled by manual weights.
+Machine learning models can adjust dynamically based on training data to better predict outcomes in edge cases.
+It generalizes beyond the weighted rules and makes predictions even for unseen scenarios.
+Goes beyond static weights by dynamically learning and optimizing feature interactions.
+Adapts to real-world complexities that a manual approach cannot capture.
 
