@@ -1,0 +1,21 @@
+import pandas as pd
+
+# Load the Excel file
+file_path = 'your_excel_file.xlsx'  # Replace with your file path
+df = pd.read_excel(file_path)
+
+# Ensure the 'start time' column is in datetime format
+df['start time'] = pd.to_datetime(df['start time'])
+
+# Define the date range
+start_date = '2024-07-01'
+end_date = '2024-09-30'
+
+# Filter the dataframe
+filtered_df = df[(df['start time'] >= start_date) & (df['start time'] <= end_date)]
+
+# Display the filtered data
+print(filtered_df)
+
+# Optionally, save the filtered data to a new Excel file
+filtered_df.to_excel('filtered_data.xlsx', index=False)
