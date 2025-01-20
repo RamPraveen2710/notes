@@ -19,3 +19,78 @@ print(filtered_df)
 
 # Optionally, save the filtered data to a new Excel file
 filtered_df.to_excel('filtered_data.xlsx', index=False)
+
+
+
+
+
+
+import pandas as pd
+
+def preprocess_data(data):
+    """Preprocess the data to clean and format it."""
+    data = data.copy()
+    data['FIRMWIDE_ID'] = data['FIRMWIDE_ID'].fillna(data['EMAIL_ADDRESS'])
+    return data
+
+def calculate_loss(data, winners):
+    """Calculate credit and revenue loss based on internal and external participants."""
+    winner_ids = set(winners['ID'])
+    
+    # Initialize counters
+    credit_loss_count = 0
+    revenue_loss_count = 0
+    
+    # Group data by ATTRIBUTE_VALUE
+    grouped_data = data.groupby('ATTRIBUTE_VALUE')
+
+    for attribute_value, group in grouped_data:
+        # Extract the winner interaction
+        winner_interaction = group[group['ID'].isin(winner_ids)]
+        
+        # If no winner is found in this group, skip it
+        if winner_interaction.empty:
+            continue
+        
+        # Get participants in the winner interaction
+        winner_participants_internal = set(
+            winner_interaction[winner_interaction['IS_EMPLOYEE'] == True]['FIRMWIDE_ID'].dropna().tolist()
+        )
+        winner_participants_external = set(
+            winner_interaction[winner_interaction['IS_EMPLOYEE'] == False]['FIRMWIDE_ID'].dropna().tolist()
+        )
+        
+        # Iterate over other interactions in the group
+        for _, interaction in group.iterrows():
+            if interaction['ID'] in winner_ids:
+                continue  # Skip the winner interaction
+            
+            # Separate internal and external participants
+            participants_internal = set(
+                group[(group['ID'] == interaction['ID']) & (group['IS_EMPLOYEE'] == True)]['FIRMWIDE_ID'].dropna().tolist()
+            )
+            participants_external = set(
+                group[(group['ID'] == interaction['ID']) & (group['IS_EMPLOYEE'] == False)]['FIRMWIDE_ID'].dropna().tolist()
+            )
+            
+            # Check for credit loss
+            if not winner_participants_internal.issuperset(participants_internal):
+                credit_loss_count += 1
+                break  # Count this attribute value once for credit loss
+            
+            # Check for revenue loss
+            if not winner_participants_external.issuperset(participants_external):
+                revenue_loss_count += 1
+                break  # Count this attribute value once for revenue loss
+
+    return credit_loss_count, revenue_loss_count
+
+# Example usage
+data = pd.read_csv('main_dataset.csv')
+winners = pd.read_csv('winner_interactions.csv')
+
+data = preprocess_data(data)
+credit_loss, revenue_loss = calculate_loss(data, winners)
+
+print(f"Credit Loss Interactions: {credit_loss}")
+print(f"Revenue Loss Interactions: {revenue_loss}")
