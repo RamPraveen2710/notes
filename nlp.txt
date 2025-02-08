@@ -1,0 +1,45 @@
+# Combine relevant fields into a single text representation
+df["text"] = df["subject"] + " " + df["participants"] + " " + df["tags"]
+
+# Print the first few rows
+print(df[["id", "text"]])
+
+
+from sentence_transformers import SentenceTransformer
+
+# Load pre-trained sentence transformer model
+model = SentenceTransformer("all-MiniLM-L6-v2")
+
+# Convert interaction texts into vector embeddings
+embeddings = model.encode(df["text"].tolist(), convert_to_tensor=True)
+
+# Print the shape of generated embeddings
+print("Embedding Shape:", embeddings.shape)  # (num_interactions, 384)
+
+
+
+from sklearn.metrics.pairwise import cosine_similarity
+import torch
+
+def search_interactions(query, df, embeddings, model, top_k=3):
+    # Convert user query into an embedding
+    query_embedding = model.encode([query], convert_to_tensor=True)
+
+    # Compute cosine similarity between the query and all stored embeddings
+    similarities = cosine_similarity(query_embedding.cpu(), embeddings.cpu())[0]
+
+    # Get the indices of top-K most similar interactions
+    top_indices = similarities.argsort()[-top_k:][::-1]
+
+    # Retrieve the matching interactions
+    results = df.iloc[top_indices].copy()
+    results["score"] = similarities[top_indices]  # Add similarity score
+
+    return results
+
+# Example search
+query = "Dinner with Google CEO"
+search_results = search_interactions(query, df, embeddings, model)
+
+# Print results
+print(search_results[["id", "subject", "score"]])
