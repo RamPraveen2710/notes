@@ -43,3 +43,38 @@ search_results = search_interactions(query, df, embeddings, model)
 
 # Print results
 print(search_results[["id", "subject", "score"]])
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+from transformers import AutoModel, AutoTokenizer
+import torch
+
+# Load a different semantic search model (e.g., BERT, RoBERTa, DistilBERT)
+model_name = "sentence-transformers/all-mpnet-base-v2"  # A strong alternative
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModel.from_pretrained(model_name)
+
+def get_embedding(text):
+    tokens = tokenizer(text, return_tensors="pt", padding=True, truncation=True)
+    with torch.no_grad():
+        output = model(**tokens)
+    return output.last_hidden_state.mean(dim=1)  # Get sentence-level embedding
+
+# Example usage
+query_embedding = get_embedding("Meeting with Google CEO")
+print(query_embedding.shape)  # Output shape: (1, 768)
+
