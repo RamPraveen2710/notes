@@ -48,18 +48,6 @@ print(search_results[["id", "subject", "score"]])
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
 from transformers import AutoModel, AutoTokenizer
 import torch
 
@@ -77,4 +65,48 @@ def get_embedding(text):
 # Example usage
 query_embedding = get_embedding("Meeting with Google CEO")
 print(query_embedding.shape)  # Output shape: (1, 768)
+
+
+
+
+
+
+pip install torch transformers scikit-learn faiss-cpu
+import torch
+from transformers import AutoTokenizer, AutoModel
+import pandas as pd
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+# Load the tokenizer and model
+model_name = "sentence-transformers/all-mpnet-base-v2"
+tokenizer = AutoTokenizer.from_pretrained(model_name)
+model = AutoModel.from_pretrained(model_name)
+
+# Function to generate embeddings
+def get_embedding(text):
+    tokens = tokenizer(text, return_tensors="pt", padding=True, truncation=True, max_length=512)
+    with torch.no_grad():
+        output = model(**tokens)
+    return output.last_hidden_state.mean(dim=1).squeeze().numpy()  # Mean pooling
+# Convert all stored interactions into embeddings
+embeddings = np.array([get_embedding(text) for text in df["text"]])
+
+# Save embeddings for future use (avoid recomputing)
+np.save("embeddings.npy", embeddings)
+def search_interactions(query, df, embeddings, top_k=5):
+    query_embedding = get_embedding(query).reshape(1, -1)  # Convert query to embedding
+    similarities = cosine_similarity(query_embedding, embeddings)[0]  # Compute similarity scores
+    top_indices = similarities.argsort()[-top_k:][::-1]  # Get top K matches
+
+    # Retrieve matching interactions
+    results = df.iloc[top_indices].copy()
+    results["score"] = similarities[top_indices]  # Add similarity score
+
+    return results
+query = "Dinner with Google CEO"
+search_results = search_interactions(query, df, embeddings)
+
+# Print top matches
+print(search_results[["id", "subject", "score"]])
+
 
