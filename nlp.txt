@@ -110,3 +110,67 @@ search_results = search_interactions(query, df, embeddings)
 print(search_results[["id", "subject", "score"]])
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+import pandas as pd
+
+# Load the dataset (replace 'your_file.xlsx' with actual file path)
+file_path = "your_file.xlsx"
+df = pd.read_excel(file_path)
+
+# Fill NaN values with empty strings to avoid issues in concatenation
+df = df.fillna("")
+
+# Grouping function to aggregate interaction details
+def aggregate_interaction(group):
+    """Aggregates multiple rows per interaction ID into a single text sentence."""
+    return pd.Series({
+        "Subject": group["Subject"].iloc[0],  
+        "Purpose": group["Purpose"].iloc[0],  
+        "Tag": group["Tag"].iloc[0],  
+        "Participants": " ".join(group["Participant_Name"].unique()),  
+        "Emails": " ".join(group["Email_Address"].unique()),  
+        "Titles": " ".join(group["Title"].unique()),  
+        "Functional_Roles": " ".join(group["Functional_Role"].unique()),  
+        "Party_Name": group["Party_Name"].iloc[0],  
+        "Party_Site": group["Party_Site"].iloc[0],  
+    })
+
+# Apply aggregation on grouped data
+aggregated_df = df.groupby("ID").apply(aggregate_interaction).reset_index()
+
+# Create a new column "Interaction_Text" with combined context
+aggregated_df["Interaction_Text"] = (
+    aggregated_df["Subject"] + " " +
+    aggregated_df["Purpose"] + " " +
+    aggregated_df["Tag"] + " " +
+    aggregated_df["Participants"] + " " +
+    aggregated_df["Emails"] + " " +
+    aggregated_df["Titles"] + " " +
+    aggregated_df["Functional_Roles"] + " " +
+    aggregated_df["Party_Name"] + " " +
+    aggregated_df["Party_Site"]
+)
+
+# Save the final dataset with Interaction_Text column
+aggregated_df.to_csv("processed_interactions.csv", index=False)
+
+# Print sample output
+print(aggregated_df.head())
+
+
+
+df = df.merge(aggregated_df[['ID', 'Interaction_Text']], on='ID', how='left')
+
+
+
