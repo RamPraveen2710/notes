@@ -174,3 +174,89 @@ df = df.merge(aggregated_df[['ID', 'Interaction_Text']], on='ID', how='left')
 
 
 
+
+
+
+import pandas as pd
+
+# Load the dataset (replace 'your_file.xlsx' with actual file path)
+file_path = "your_file.xlsx"
+df = pd.read_excel(file_path, dtype=str)  # Ensure all data is read as strings
+
+# Fill NaN values with empty strings to avoid issues in concatenation
+df = df.fillna("")
+
+# Function to determine the correct role based on internal/external status
+def determine_role(row):
+    """Assign functional role based on internal/external status."""
+    if row["IS_EMPLOYEE"] == "1":  # Internal participant
+        return row["Title"] if row["Title"] else (row["Functional_Role"] if row["Functional_Role"] else "NA")
+    else:  # External participant
+        return row["Functional_Role"] if row["Functional_Role"] else (row["Title"] if row["Title"] else "NA")
+
+# Apply role determination function
+df["Final_Role"] = df.apply(determine_role, axis=1)
+
+# Grouping function to aggregate interaction details
+def aggregate_interaction(group):
+    """Aggregates multiple rows per interaction ID into a meaningful sentence."""
+    
+    subject = group["Subject"].iloc[0]
+    purpose = group["Purpose"].iloc[0]
+    tag = group["Tag"].iloc[0] if "Tag" in group and group["Tag"].iloc[0] else ""
+    
+    participants = " and ".join(group["Participant_Name"].dropna().unique())  
+    emails = ", ".join(group["Email_Address"].dropna().unique())  
+    roles = ", ".join(group["Final_Role"].dropna().unique())  
+    party_name = group["Party_Name"].iloc[0] if "Party_Name" in group and group["Party_Name"].iloc[0] else ""
+    party_site = group["Party_Site"].iloc[0] if "Party_Site" in group and group["Party_Site"].iloc[0] else ""
+
+    # Constructing the sentence dynamically
+    sentence_parts = []
+    
+    if subject:
+        sentence_parts.append(f"An interaction with subject '{subject}'")
+    
+    if participants:
+        sentence_parts.append(f"includes participants {participants}")
+    
+    if roles:
+        sentence_parts.append(f"with roles as {roles}")
+    
+    if emails:
+        sentence_parts.append(f"having emails {emails}")
+    
+    if purpose:
+        sentence_parts.append(f"for the purpose of {purpose}")
+    
+    if tag:
+        sentence_parts.append(f"and is tagged as {tag}")
+    
+    if party_name:
+        sentence_parts.append(f"associated with party {party_name}")
+    
+    if party_site:
+        sentence_parts.append(f"at location {party_site}")
+
+    # Final sentence
+    interaction_sentence = ". ".join(sentence_parts) + "."
+
+    return pd.Series({
+        "ID": group["ID"].iloc[0],  
+        "Interaction_Text": interaction_sentence
+    })
+
+# Apply aggregation on grouped data
+aggregated_df = df.groupby("ID", as_index=False).apply(aggregate_interaction)
+
+# Save the final dataset with Interaction_Text column
+output_file = "processed_interactions.csv"
+aggregated_df.to_csv(output_file, index=False)
+
+# Print sample output
+print("Data saved to:", output_file)
+print(aggregated_df.head())
+
+
+
+
