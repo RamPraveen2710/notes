@@ -1,3 +1,27 @@
+It's always nice to show your appreciation. Here's an example of what you could say or write to thank your manager:  
+
+---
+
+**Dear [Manager's Name],**  
+
+I just wanted to take a moment to thank you for everything you've done during your time here. Your guidance and leadership have had a big impact on my growth, both personally and professionally. I've learned so much from the way you approach challenges, motivate the team, and create an environment where everyone feels valued.  
+
+Your support, especially during [mention any specific moment, project, or instance], really stood out to me, and I’m grateful for the opportunities I’ve had to work under your leadership.  
+
+While I’m sad to see you go, I’m excited to see all the great things you’ll accomplish in the next chapter of your career. Wishing you all the best for your journey ahead!  
+
+Thank you once again for everything.  
+
+Best regards,  
+[Your Name]  
+
+---
+
+If you're saying this in person, adapt it into a heartfelt conversation. Adding a personal touch (like sharing a specific moment where they helped you or impacted your career) will make it more meaningful.  
+
+Are you planning to give a gift or write a note? I can help with suggestions if you'd like!
+
+
 def extract_pairwise_features(aggregated_data, time_window=15):
     """
     Extract pairwise features for all interactions within the time window (-15 to +15 minutes)
