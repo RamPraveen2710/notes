@@ -1,0 +1,67 @@
+pip install sentence-transformers transformers pandas numpy scikit-learn
+from sentence_transformers import SentenceTransformer
+import numpy as np
+
+# Load embedding model
+model = SentenceTransformer("sentence-transformers/all-mpnet-base-v2")
+
+# Generate embeddings for all stored discussions
+embeddings = model.encode(df["text"].tolist(), convert_to_tensor=True)
+
+# Save embeddings & data to avoid recomputation
+np.save("embeddings.npy", embeddings.cpu().numpy())
+df.to_csv("client_discussions.csv", index=False)
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load stored embeddings & discussions
+embeddings = np.load("embeddings.npy")
+df = pd.read_csv("client_discussions.csv")
+
+def search_relevant_discussions(query, top_k=3):
+    # Convert query to an embedding
+    query_embedding = model.encode([query], convert_to_tensor=True).cpu().numpy()
+
+    # Compute cosine similarity between query and all stored embeddings
+    similarities = cosine_similarity(query_embedding, embeddings)[0]
+
+    # Get the indices of the top K most similar discussions
+    top_indices = similarities.argsort()[-top_k:][::-1]
+
+    # Retrieve matching discussions
+    results = df.iloc[top_indices].copy()
+    results["score"] = similarities[top_indices]
+    return results
+
+
+
+from transformers import pipeline
+
+# Load Hugging Face summarization model
+summarizer = pipeline("summarization", model="facebook/bart-large-cnn")
+
+def abstractive_summary(text):
+    # Limit text length for summarization (most models have a max input limit)
+    if len(text.split()) > 512:
+        text = " ".join(text.split()[:512])
+
+    # Generate summary
+    summary = summarizer(text, max_length=150, min_length=50, do_sample=False)
+    return summary[0]["summary_text"]
+
+
+def chatbot_response(query):
+    # Step 1: Search for relevant discussions
+    relevant_discussions = search_relevant_discussions(query, top_k=3)
+
+    # Step 2: Extract full transcripts
+    all_texts = " ".join(relevant_discussions["full_transcript"].tolist())
+
+    # Step 3: Summarize discussions
+    summary = abstractive_summary(all_texts)
+
+    # Step 4: Format the response
+    response = f"📌 **Summary of discussions with {query.split()[-1]}:**\n{summary}"
+    return response
+query = "Summarize discussions with XYZ Corp"
+response = chatbot_response(query)
+print(response)
