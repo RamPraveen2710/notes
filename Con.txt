@@ -1,0 +1,47 @@
+import pandas as pd
+
+# Load Interaction Data
+interaction_file = "interaction_data.xlsx"  # Replace with actual file path
+interaction_df = pd.read_excel(interaction_file)
+
+# Fill missing values to avoid errors
+interaction_df = interaction_df.fillna("")
+
+# Function to determine RoleTitle (Title or FunctionalRole)
+def assign_role_title(row):
+    """Assigns a role title based on availability of Title or FunctionalRole."""
+    if row["EmployeeInd"] == 1:  # Internal Participants
+        return row["Title"] if row["Title"] else (row["Functional Role"] if row["Functional Role"] else "UNKNOWN")
+    else:  # External Participants
+        return row["Functional Role"] if row["Functional Role"] else (row["Title"] if row["Title"] else "UNKNOWN")
+
+# Apply role assignment
+interaction_df["RoleTitle"] = interaction_df.apply(assign_role_title, axis=1)
+
+# Aggregation function
+def aggregate_interactions(group):
+    return pd.Series({
+        "StartTime": group["StartTime"].iloc[0],
+        "EndTime": group["EndTime"].iloc[0],
+        "Subject": group["Subject"].iloc[0],
+        "EMCM_Ticker": group["EMCM_Ticker"].iloc[0],
+        "RIC": list(group["RIC"].dropna().unique()),  # Unique list
+        "TickerDiscussed": list(group["TickerDiscussed"].dropna().unique()),  # Unique list
+        "TickerDescription": list(group["TickerDescription"].dropna().unique()),  # Unique list
+        "Party": list(group["Party"].dropna().unique()),  # Unique list
+        "PartySite": list(group["PartySite"].dropna().unique()),  # Unique list
+        "Participants": list(group["FirmwideID"].dropna()),  # Collect all participants
+        "ParticipantNames": list(group["Participant Name"].dropna()),  # Collect all names
+        "EmployeeInd": list(group["EmployeeInd"]),  # External/Internal indicator
+        "Roles": list(group["Role"]),  # Keep full list of roles (INV, COR, etc.)
+        "RoleTitles": list(group["RoleTitle"].dropna()),  # Keep processed role/title
+    })
+
+# Apply aggregation
+aggregated_interaction_df = interaction_df.groupby("InteractionID").apply(aggregate_interactions).reset_index()
+
+# Save to CSV
+aggregated_interaction_df.to_csv("aggregated_interactions.csv", index=False)
+
+# Print sample output
+print(aggregated_interaction_df.head())
