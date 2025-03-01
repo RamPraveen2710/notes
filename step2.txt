@@ -1,0 +1,84 @@
+import pandas as pd
+
+# Load the processed interaction & readership data
+interaction_file = "processed_interactions.csv"
+readership_file = "processed_readership.csv"
+
+interactions_df = pd.read_csv(interaction_file, dtype=str)
+readership_df = pd.read_csv(readership_file, dtype=str)
+
+# Convert lists stored as strings back to lists
+import ast
+list_columns = ["FirmwideIDs", "ParticipantNames", "EmployeeInd", "Roles", "RICs", "TickersDiscussed", "EMCM_Tickers"]
+for col in list_columns:
+    interactions_df[col] = interactions_df[col].apply(lambda x: ast.literal_eval(x) if pd.notna(x) and x.startswith("[") else [])
+
+# ✅ Step 2.1: Identify External Readers Interested in the Searched Ticker
+def get_interested_readers(ticker, readership_df):
+    """Find unique FirmwideIDs from readership data for a given ticker."""
+    filtered_readers = readership_df[readership_df["TickerRead"].str.contains(ticker, case=False, na=False)]
+    return set(filtered_readers["FirmwideID"].unique())
+
+# ✅ Step 2.2: Identify Interactions with the Searched Ticker
+def get_ticker_matched_interactions(ticker, interactions_df):
+    """
+    Find interactions where an external participant is present and 
+    the TickerDiscussed, RIC, or EMCM_Ticker contains the searched ticker.
+    """
+    matched_interactions = []
+    external_participants = set()
+
+    for _, row in interactions_df.iterrows():
+        if any(ticker.lower() in str(value).lower() for value in row["TickersDiscussed"] + row["RICs"] + row["EMCM_Tickers"]):
+            # Check if there's at least one external participant
+            if any(emp == "0" for emp in row["EmployeeInd"]):  # External participants have EmployeeInd = 0
+                matched_interactions.append(row["InteractionID"])
+                external_participants.update(row["FirmwideIDs"])  # Add external firmwide IDs
+    
+    return set(matched_interactions), external_participants
+
+# ✅ Step 2.3: Get Combined List of External Participants
+def get_initial_participant_list(ticker, readership_df, interactions_df):
+    """
+    Combine readership FirmwideIDs and FirmwideIDs from ticker-matched interactions.
+    """
+    interested_readers = get_interested_readers(ticker, readership_df)
+    matched_interactions, external_participants = get_ticker_matched_interactions(ticker, interactions_df)
+
+    # Combine both sets of external participants
+    combined_external_participants = interested_readers.union(external_participants)
+
+    return matched_interactions, combined_external_participants
+
+# Run for a given ticker (Example: "NVDA")
+searched_ticker = "NVDA"
+matched_interactions, external_participants = get_initial_participant_list(searched_ticker, readership_df, interactions_df)
+
+# ✅ Print Output
+print(f"High-confidence interactions for ticker '{searched_ticker}':", matched_interactions)
+print(f"Identified external participants:", external_participants)
+
+
+
+# ✅ Step 2.2: Identify Interactions with the Searched Ticker
+def get_ticker_matched_interactions(ticker, interactions_df):
+    """
+    Find interactions where an external participant is present and 
+    the TickerDiscussed, RIC, or EMCM_Ticker contains the searched ticker.
+    """
+    matched_interactions = []
+    external_participants = set()
+
+    for _, row in interactions_df.iterrows():
+        # Check if ticker is in the TickersDiscussed, RIC, or EMCM_Tickers
+        if any(ticker.lower() in str(value).lower() for value in row["TickersDiscussed"] + row["RICs"] + row["EMCM_Tickers"]):
+            # Check if there's at least one external participant (EmployeeInd = "0")
+            if any(emp == "0" for emp in row["EmployeeInd"]):  
+                matched_interactions.append(row["InteractionID"])
+
+                # Add only external FirmwideIDs (EmployeeInd == "0")
+                for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]):
+                    if emp == "0":  # This ensures only external participants are included
+                        external_participants.add(fid)
+
+    return set(matched_interactions), external_participants
