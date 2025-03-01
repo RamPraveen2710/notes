@@ -82,3 +82,18 @@ def get_ticker_matched_interactions(ticker, interactions_df):
                         external_participants.add(fid)
 
     return set(matched_interactions), external_participants
+
+
+remaining_interactions_df = interactions_df[~interactions_df["InteractionID"].isin(matched_interactions)].copy()
+
+    return matched_interactions, external_participants, remaining_interactions_df
+
+
+
+
+# Step 2.2: Fetch high-confidence interactions and external participants
+matched_interactions, external_participants, remaining_interactions_df = get_ticker_matched_interactions("NVDA", interactions_df)
+
+# Step 2.3: Now, use remaining_interactions_df in the next step
+new_matched_interactions = some_other_function(remaining_interactions_df)
+
