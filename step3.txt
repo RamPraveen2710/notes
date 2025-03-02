@@ -1,5 +1,5 @@
 # ✅ Step 3: Identify Covering Analyst Interactions
-def get_analyst_matched_interactions(ticker, remaining_interactions_df, external_participants):
+def get_analyst_matched_interactions(ticker, remaining_interactions_df, external_participants, final_matched_interactions, interaction_scores):
     """
     Identify interactions where:
     - The internal participant is a covering analyst for the given ticker.
@@ -14,15 +14,13 @@ def get_analyst_matched_interactions(ticker, remaining_interactions_df, external
         "AAPL": "1161226"
     }
 
-    matched_interactions = set()
-    interaction_scores = {}
-
     if ticker not in covering_analysts:
         print(f"No covering analyst found for {ticker}")
         return pd.DataFrame(), remaining_interactions_df
 
     covering_analyst_id = covering_analysts[ticker]
-    
+    matched_interactions = set()
+
     # Identify interactions that contain the covering analyst + external participants
     for _, row in remaining_interactions_df.iterrows():
         internal_firmwide_ids = {fid for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]) if emp == "1"}
@@ -41,6 +39,9 @@ def get_analyst_matched_interactions(ticker, remaining_interactions_df, external
                 else:
                     interaction_scores[row["InteractionID"]] = 75  # Weaker Context
 
+    # Store matched interactions
+    final_matched_interactions.update(matched_interactions)
+
     # Extract matched interactions into DataFrame
     matched_df_analyst = remaining_interactions_df[remaining_interactions_df["InteractionID"].isin(matched_interactions)].copy()
     matched_df_analyst["Score"] = matched_df_analyst["InteractionID"].map(interaction_scores)
@@ -50,8 +51,14 @@ def get_analyst_matched_interactions(ticker, remaining_interactions_df, external
 
     return matched_df_analyst, remaining_interactions_df
 
+# Initialize tracking variables
+final_matched_interactions = set()  # Store all matched interactions
+interaction_scores = {}  # Store scores for matched interactions
+
 # Run Step 3 for NVDA
-matched_df_analyst, remaining_interactions_df = get_analyst_matched_interactions(searched_ticker, remaining_interactions_df, external_participants)
+matched_df_analyst, remaining_interactions_df = get_analyst_matched_interactions(
+    searched_ticker, remaining_interactions_df, external_participants, final_matched_interactions, interaction_scores
+)
 
 # ✅ Print Output
 print(f"Covering analyst matched interactions for '{searched_ticker}':", matched_df_analyst.shape[0])
