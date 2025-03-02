@@ -1,4 +1,5 @@
 import pandas as pd
+import ast
 
 # Load the processed interaction & readership data
 interaction_file = "processed_interactions.csv"
@@ -8,7 +9,6 @@ interactions_df = pd.read_csv(interaction_file, dtype=str)
 readership_df = pd.read_csv(readership_file, dtype=str)
 
 # Convert lists stored as strings back to lists
-import ast
 list_columns = ["FirmwideIDs", "ParticipantNames", "EmployeeInd", "Roles", "RICs", "TickersDiscussed", "EMCM_Tickers"]
 for col in list_columns:
     interactions_df[col] = interactions_df[col].apply(lambda x: ast.literal_eval(x) if pd.notna(x) and x.startswith("[") else [])
@@ -22,121 +22,52 @@ def get_interested_readers(ticker, readership_df):
 # ✅ Step 2.2: Identify Interactions with the Searched Ticker
 def get_ticker_matched_interactions(ticker, interactions_df):
     """
-    Find interactions where an external participant is present and 
-    the TickerDiscussed, RIC, or EMCM_Ticker contains the searched ticker.
+    Find interactions where:
+    - An external participant is present
+    - The TickerDiscussed, RIC, or EMCM_Ticker contains the searched ticker
+    - Assign the highest score (100) to these interactions
     """
-    matched_interactions = []
+    matched_interactions = set()
     external_participants = set()
+    interaction_scores = {}  # Store interaction scores
 
     for _, row in interactions_df.iterrows():
         if any(ticker.lower() in str(value).lower() for value in row["TickersDiscussed"] + row["RICs"] + row["EMCM_Tickers"]):
-            # Check if there's at least one external participant
-            if any(emp == "0" for emp in row["EmployeeInd"]):  # External participants have EmployeeInd = 0
-                matched_interactions.append(row["InteractionID"])
-                external_participants.update(row["FirmwideIDs"])  # Add external firmwide IDs
-    
-    return set(matched_interactions), external_participants
+            # Ensure at least one external participant
+            external_firmwide_ids = {fid for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]) if emp == "0"}
+            if external_firmwide_ids:
+                matched_interactions.add(row["InteractionID"])
+                interaction_scores[row["InteractionID"]] = 100  # Assign highest score
+                external_participants.update(external_firmwide_ids)
+
+    return matched_interactions, external_participants, interaction_scores
 
 # ✅ Step 2.3: Get Combined List of External Participants
 def get_initial_participant_list(ticker, readership_df, interactions_df):
     """
-    Combine readership FirmwideIDs and FirmwideIDs from ticker-matched interactions.
+    - Combine readership FirmwideIDs and FirmwideIDs from ticker-matched interactions.
+    - Assign scores to interactions and return remaining interactions for next steps.
     """
     interested_readers = get_interested_readers(ticker, readership_df)
-    matched_interactions, external_participants = get_ticker_matched_interactions(ticker, interactions_df)
+    matched_interactions, external_participants, interaction_scores = get_ticker_matched_interactions(ticker, interactions_df)
 
     # Combine both sets of external participants
     combined_external_participants = interested_readers.union(external_participants)
 
-    return matched_interactions, combined_external_participants
-
-# Run for a given ticker (Example: "NVDA")
-searched_ticker = "NVDA"
-matched_interactions, external_participants = get_initial_participant_list(searched_ticker, readership_df, interactions_df)
-
-# ✅ Print Output
-print(f"High-confidence interactions for ticker '{searched_ticker}':", matched_interactions)
-print(f"Identified external participants:", external_participants)
-
-
-
-# ✅ Step 2.2: Identify Interactions with the Searched Ticker
-def get_ticker_matched_interactions(ticker, interactions_df):
-    """
-    Find interactions where an external participant is present and 
-    the TickerDiscussed, RIC, or EMCM_Ticker contains the searched ticker.
-    """
-    matched_interactions = []
-    external_participants = set()
-
-    for _, row in interactions_df.iterrows():
-        # Check if ticker is in the TickersDiscussed, RIC, or EMCM_Tickers
-        if any(ticker.lower() in str(value).lower() for value in row["TickersDiscussed"] + row["RICs"] + row["EMCM_Tickers"]):
-            # Check if there's at least one external participant (EmployeeInd = "0")
-            if any(emp == "0" for emp in row["EmployeeInd"]):  
-                matched_interactions.append(row["InteractionID"])
-
-                # Add only external FirmwideIDs (EmployeeInd == "0")
-                for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]):
-                    if emp == "0":  # This ensures only external participants are included
-                        external_participants.add(fid)
-
-    return set(matched_interactions), external_participants
-
-
-remaining_interactions_df = interactions_df[~interactions_df["InteractionID"].isin(matched_interactions)].copy()
-
-    return matched_interactions, external_participants, remaining_interactions_df
-
-
-
-
-# Step 2.2: Fetch high-confidence interactions and external participants
-matched_interactions, external_participants, remaining_interactions_df = get_ticker_matched_interactions("NVDA", interactions_df)
-
-# Step 2.3: Now, use remaining_interactions_df in the next step
-new_matched_interactions = some_other_function(remaining_interactions_df)
-
-
-
-
-
-
-
-
-
-
-
-
-def get_ticker_matched_interactions(ticker, interactions_df):
-    """
-    Find interactions where an external participant is present and 
-    the TickerDiscussed, RIC, or EMCM_Ticker contains the searched ticker.
-    Also, exclude these interactions from further steps.
-    """
-    matched_interactions = set()  # Using a set for fast lookup & no duplicates
-    external_participants = set()
-    interaction_scores = {}  # Dictionary to store scores
-
-    for _, row in interactions_df.iterrows():
-        # Check if ticker is in TickersDiscussed, RIC, or EMCM_Tickers
-        if any(ticker.lower() in str(value).lower() for value in row["TickersDiscussed"] + row["RICs"] + row["EMCM_Tickers"]):
-            # Check if at least one external participant is present
-            if any(emp == "0" for emp in row["EmployeeInd"]):
-                matched_interactions.add(row["InteractionID"])
-                interaction_scores[row["InteractionID"]] = 100  # *Assign Highest Score (100)*
-
-                # Store only external FirmwideIDs
-                for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]):
-                    if emp == "0":
-                        external_participants.add(fid)
-
-    # Create a DataFrame with scores for reporting
+    # Create a DataFrame for Matched Interactions with Scores
     matched_df = interactions_df[interactions_df["InteractionID"].isin(matched_interactions)].copy()
-    matched_df["Score"] = matched_df["InteractionID"].map(interaction_scores)  # Add Score Column
+    matched_df["Score"] = matched_df["InteractionID"].map(interaction_scores)
 
     # Exclude matched interactions from further processing
     remaining_interactions_df = interactions_df[~interactions_df["InteractionID"].isin(matched_interactions)].copy()
 
-    return matched_df, external_participants, remaining_interactions_df
+    return matched_df, combined_external_participants, remaining_interactions_df
 
+# Run for a given ticker (Example: "NVDA")
+searched_ticker = "NVDA"
+matched_df, external_participants, remaining_interactions_df = get_initial_participant_list(searched_ticker, readership_df, interactions_df)
+
+# ✅ Print Output
+print(f"High-confidence interactions for ticker '{searched_ticker}':", matched_df.shape[0])
+print(f"Identified external participants:", len(external_participants))
+print(f"Remaining interactions after Step 2:", remaining_interactions_df.shape[0])
