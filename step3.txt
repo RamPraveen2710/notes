@@ -1,0 +1,58 @@
+# ✅ Step 3: Identify Covering Analyst Interactions
+def get_analyst_matched_interactions(ticker, remaining_interactions_df, external_participants):
+    """
+    Identify interactions where:
+    - The internal participant is a covering analyst for the given ticker.
+    - At least one external participant is present from our identified list.
+    - Assign scores based on subject relevance.
+    """
+    # Define covering analysts for each ticker
+    covering_analysts = {
+        "NVDA": "874459",
+        "TSLA": "10327",
+        "MSFT": "153425",
+        "AAPL": "1161226"
+    }
+
+    matched_interactions = set()
+    interaction_scores = {}
+
+    if ticker not in covering_analysts:
+        print(f"No covering analyst found for {ticker}")
+        return pd.DataFrame(), remaining_interactions_df
+
+    covering_analyst_id = covering_analysts[ticker]
+    
+    # Identify interactions that contain the covering analyst + external participants
+    for _, row in remaining_interactions_df.iterrows():
+        internal_firmwide_ids = {fid for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]) if emp == "1"}
+        external_firmwide_ids = {fid for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]) if emp == "0"}
+
+        # Check if the covering analyst is an internal participant
+        if covering_analyst_id in internal_firmwide_ids:
+            # Check if at least one external participant is in our identified list
+            if external_firmwide_ids & external_participants:  # Intersection check
+                matched_interactions.add(row["InteractionID"])
+                
+                # Assign scores based on subject match
+                subject_text = str(row["Subject"]).lower()
+                if "nvda" in subject_text or "nvidia" in subject_text:
+                    interaction_scores[row["InteractionID"]] = 90  # Strong Context
+                else:
+                    interaction_scores[row["InteractionID"]] = 75  # Weaker Context
+
+    # Extract matched interactions into DataFrame
+    matched_df_analyst = remaining_interactions_df[remaining_interactions_df["InteractionID"].isin(matched_interactions)].copy()
+    matched_df_analyst["Score"] = matched_df_analyst["InteractionID"].map(interaction_scores)
+
+    # Remove these interactions from the remaining dataset
+    remaining_interactions_df = remaining_interactions_df[~remaining_interactions_df["InteractionID"].isin(matched_interactions)].copy()
+
+    return matched_df_analyst, remaining_interactions_df
+
+# Run Step 3 for NVDA
+matched_df_analyst, remaining_interactions_df = get_analyst_matched_interactions(searched_ticker, remaining_interactions_df, external_participants)
+
+# ✅ Print Output
+print(f"Covering analyst matched interactions for '{searched_ticker}':", matched_df_analyst.shape[0])
+print(f"Remaining interactions after Step 3:", remaining_interactions_df.shape[0])
