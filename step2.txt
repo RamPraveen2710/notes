@@ -97,3 +97,46 @@ matched_interactions, external_participants, remaining_interactions_df = get_tic
 # Step 2.3: Now, use remaining_interactions_df in the next step
 new_matched_interactions = some_other_function(remaining_interactions_df)
 
+
+
+
+
+
+
+
+
+
+
+
+def get_ticker_matched_interactions(ticker, interactions_df):
+    """
+    Find interactions where an external participant is present and 
+    the TickerDiscussed, RIC, or EMCM_Ticker contains the searched ticker.
+    Also, exclude these interactions from further steps.
+    """
+    matched_interactions = set()  # Using a set for fast lookup & no duplicates
+    external_participants = set()
+    interaction_scores = {}  # Dictionary to store scores
+
+    for _, row in interactions_df.iterrows():
+        # Check if ticker is in TickersDiscussed, RIC, or EMCM_Tickers
+        if any(ticker.lower() in str(value).lower() for value in row["TickersDiscussed"] + row["RICs"] + row["EMCM_Tickers"]):
+            # Check if at least one external participant is present
+            if any(emp == "0" for emp in row["EmployeeInd"]):
+                matched_interactions.add(row["InteractionID"])
+                interaction_scores[row["InteractionID"]] = 100  # *Assign Highest Score (100)*
+
+                # Store only external FirmwideIDs
+                for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]):
+                    if emp == "0":
+                        external_participants.add(fid)
+
+    # Create a DataFrame with scores for reporting
+    matched_df = interactions_df[interactions_df["InteractionID"].isin(matched_interactions)].copy()
+    matched_df["Score"] = matched_df["InteractionID"].map(interaction_scores)  # Add Score Column
+
+    # Exclude matched interactions from further processing
+    remaining_interactions_df = interactions_df[~interactions_df["InteractionID"].isin(matched_interactions)].copy()
+
+    return matched_df, external_participants, remaining_interactions_df
+
