@@ -1,0 +1,79 @@
+import torch
+from sentence_transformers import SentenceTransformer, util
+import numpy as np
+import pickle  # For saving embeddings
+
+# ✅ Load NLP Model (Ensure you have all-mpnet-base-v2 locally)
+model_path = "C:\\MSDE\\rampravt\\Context_Search_POC\\all-mpnet-base-v2"
+model = SentenceTransformer(model_path)
+
+# ✅ Function to compute NLP similarity & filter interactions
+def get_nlp_filtered_interactions(ticker, remaining_interactions_df, external_participants, similarity_threshold=0.65):
+    """
+    Identify interactions where:
+    - At least one external participant is in our external contact list.
+    - Subject is checked using NLP similarity against the given ticker.
+    - Assigns scores based on similarity.
+
+    Returns:
+    - DataFrame of matched interactions with NLP scores.
+    - Updated remaining interactions.
+    - Embeddings for future retrieval.
+    """
+
+    matched_interactions = set()
+    interaction_scores = {}
+    interaction_texts = []
+    interaction_ids = []
+
+    # Reference sentences (Ticker Context)
+    reference_text = ticker.lower()  # Example: "nvda"
+
+    for _, row in remaining_interactions_df.iterrows():
+        external_firmwide_ids = {fid for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]) if emp == "0"}
+
+        # ✅ Step 4.1: Ensure at least one external participant is in our external contact list
+        if not external_firmwide_ids & external_participants:  # If no intersection, continue
+            continue
+
+        # ✅ Step 4.2: Compute NLP similarity for subject text
+        subject_text = str(row["Subject"]).lower()
+        interaction_texts.append(subject_text)  # Store for embeddings
+        interaction_ids.append(row["InteractionID"])
+
+    # ✅ Step 4.3: Generate embeddings (Batch Processing)
+    if interaction_texts:
+        subject_embeddings = model.encode(interaction_texts, convert_to_tensor=True)
+        reference_embedding = model.encode([reference_text], convert_to_tensor=True)
+
+        # Compute similarity scores
+        similarity_scores = util.pytorch_cos_sim(reference_embedding, subject_embeddings).squeeze().tolist()
+
+        for i, interaction_id in enumerate(interaction_ids):
+            score = similarity_scores[i]
+            if score >= similarity_threshold:  # ✅ Step 4.4: Check Threshold
+                matched_interactions.add(interaction_id)
+                interaction_scores[interaction_id] = round(score * 100, 2)  # Convert similarity to score (0-100)
+
+    # ✅ Step 4.5: Store Matched Interactions
+    matched_df_nlp = remaining_interactions_df[remaining_interactions_df["InteractionID"].isin(matched_interactions)].copy()
+    matched_df_nlp["Score"] = matched_df_nlp["InteractionID"].map(interaction_scores)
+
+    # Remove matched interactions from remaining dataset
+    remaining_interactions_df = remaining_interactions_df[~remaining_interactions_df["InteractionID"].isin(matched_interactions)].copy()
+
+    # ✅ Save Embeddings for Future Use
+    embeddings_dict = {interaction_ids[i]: subject_embeddings[i].cpu().numpy() for i in range(len(interaction_ids))}
+    with open("saved_embeddings.pkl", "wb") as f:
+        pickle.dump(embeddings_dict, f)
+
+    print(f"Saved {len(embeddings_dict)} embeddings for future usage.")
+
+    return matched_df_nlp, remaining_interactions_df
+
+# ✅ Run Step 4 for NVDA
+matched_df_nlp, remaining_interactions_df = get_nlp_filtered_interactions(searched_ticker, remaining_interactions_df, external_participants)
+
+# ✅ Print Output
+print(f"NLP-matched interactions for '{searched_ticker}':", matched_df_nlp.shape[0])
+print(f"Remaining interactions after Step 4:", remaining_interactions_df.shape[0])
