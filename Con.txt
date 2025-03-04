@@ -50,3 +50,137 @@ aggregated_interaction_df.to_csv("aggregated_interactions.csv", index=False)
 
 # Print sample output
 print(aggregated_interaction_df.head())
+
+
+
+
+
+import pandas as pd
+import ast
+from datetime import datetime, timedelta
+from collections import defaultdict
+
+# Load interaction data
+interaction_file = "processed_interactions.csv"
+interactions_df = pd.read_csv(interaction_file, dtype=str)
+
+# Convert list columns stored as strings back to lists
+list_columns = ["FirmwideIDs", "ParticipantNames", "EmployeeInd", "Roles", "RICs", "TickersDiscussed", "EMCM_Tickers"]
+for col in list_columns:
+    interactions_df[col] = interactions_df[col].apply(lambda x: ast.literal_eval(x) if pd.notna(x) and x.startswith("[") else [])
+
+# Convert StartTime to datetime for filtering
+interactions_df["StartTime"] = pd.to_datetime(interactions_df["StartTime"], errors="coerce")
+
+# Define covering analysts per ticker
+covering_analysts = {
+    "NVDA": "874459",
+    "TSLA": "10327",
+    "MSFT": "153425",
+    "AAPL": "1161226"
+}
+
+### ✅ Step 1: Identify Direct Ticker Matches & Store External Participants ###
+def get_direct_ticker_matches(ticker, interactions_df):
+    """Find interactions where the ticker is explicitly mentioned and store external participants."""
+    matched_interactions = set()
+    external_participants = set()
+    interaction_scores = {}
+
+    for _, row in interactions_df.iterrows():
+        if any(ticker.lower() in str(value).lower() for value in row["TickersDiscussed"] + row["RICs"] + row["EMCM_Tickers"]):
+            if any(emp == "0" for emp in row["EmployeeInd"]):  # External participant present
+                matched_interactions.add(row["InteractionID"])
+                external_participants.update(row["FirmwideIDs"])
+                interaction_scores[row["InteractionID"]] = 100  # Max score
+
+    matched_df = interactions_df[interactions_df["InteractionID"].isin(matched_interactions)].copy()
+    matched_df["Score"] = matched_df["InteractionID"].map(interaction_scores)
+
+    remaining_interactions_df = interactions_df[~interactions_df["InteractionID"].isin(matched_interactions)].copy()
+    
+    return matched_df, remaining_interactions_df, external_participants
+
+### ✅ Step 2: Identify Related Interactions Within ±15 Days & Apply NLP ###
+def get_related_interactions(ticker, matched_df, remaining_interactions_df, external_participants):
+    """Find interactions within ±15 days that contain external participants from Step 1 and apply NLP filtering."""
+    matched_interactions = set(matched_df["InteractionID"])
+    min_date = matched_df["StartTime"].min() - timedelta(days=15)
+    max_date = matched_df["StartTime"].max() + timedelta(days=15)
+
+    filtered_df = remaining_interactions_df[
+        (remaining_interactions_df["StartTime"] >= min_date) & 
+        (remaining_interactions_df["StartTime"] <= max_date)
+    ]
+
+    selected_interactions = set()
+    interaction_scores = {}
+
+    for _, row in filtered_df.iterrows():
+        external_ids = {fid for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]) if emp == "0"}
+        
+        if external_ids & external_participants:  # If external matches
+            subject_text = str(row["Subject"]).lower()
+            
+            # NLP-based subject score (dummy condition for now)
+            subject_score = 60 if ticker.lower() in subject_text else 40
+            
+            if subject_score >= 50:
+                selected_interactions.add(row["InteractionID"])
+                interaction_scores[row["InteractionID"]] = 80 if external_ids & external_participants else 70  # Assign different scores
+            
+    matched_df_step2 = remaining_interactions_df[remaining_interactions_df["InteractionID"].isin(selected_interactions)].copy()
+    matched_df_step2["Score"] = matched_df_step2["InteractionID"].map(interaction_scores)
+
+    remaining_interactions_df = remaining_interactions_df[~remaining_interactions_df["InteractionID"].isin(selected_interactions)].copy()
+    
+    return matched_df_step2, remaining_interactions_df
+
+### ✅ Step 3: Identify Covering Analyst Interactions Within ±30 Days ###
+def get_analyst_matched_interactions(ticker, matched_df, remaining_interactions_df, external_participants):
+    """Find interactions within ±30 days that contain the covering analyst and external participants from Step 1."""
+    matched_interactions = set(matched_df["InteractionID"])
+    min_date = matched_df["StartTime"].min() - timedelta(days=30)
+    max_date = matched_df["StartTime"].max() + timedelta(days=30)
+
+    filtered_df = remaining_interactions_df[
+        (remaining_interactions_df["StartTime"] >= min_date) & 
+        (remaining_interactions_df["StartTime"] <= max_date)
+    ]
+
+    selected_interactions = set()
+    interaction_scores = {}
+
+    if ticker not in covering_analysts:
+        return pd.DataFrame(), remaining_interactions_df
+
+    covering_analyst_id = covering_analysts[ticker]
+
+    for _, row in filtered_df.iterrows():
+        internal_ids = {fid for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]) if emp == "1"}
+        external_ids = {fid for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]) if emp == "0"}
+
+        if covering_analyst_id in internal_ids and external_ids & external_participants:
+            selected_interactions.add(row["InteractionID"])
+            interaction_scores[row["InteractionID"]] = 85  # Assign score
+
+    matched_df_step3 = remaining_interactions_df[remaining_interactions_df["InteractionID"].isin(selected_interactions)].copy()
+    matched_df_step3["Score"] = matched_df_step3["InteractionID"].map(interaction_scores)
+
+    remaining_interactions_df = remaining_interactions_df[~remaining_interactions_df["InteractionID"].isin(selected_interactions)].copy()
+    
+    return matched_df_step3, remaining_interactions_df
+
+# ✅ Run all steps sequentially
+searched_ticker = "NVDA"
+matched_df_step1, remaining_interactions_df, external_participants = get_direct_ticker_matches(searched_ticker, interactions_df)
+matched_df_step2, remaining_interactions_df = get_related_interactions(searched_ticker, matched_df_step1, remaining_interactions_df, external_participants)
+matched_df_step3, remaining_interactions_df = get_analyst_matched_interactions(searched_ticker, matched_df_step1, remaining_interactions_df, external_participants)
+
+# ✅ Combine all matched interactions
+final_matched_df = pd.concat([matched_df_step1, matched_df_step2, matched_df_step3])
+
+# ✅ Save Results
+final_matched_df.to_csv("potential_interactions_with_scores.csv", index=False)
+
+print("Processing completed. Saved to 'potential_interactions_with_scores.csv'.")
