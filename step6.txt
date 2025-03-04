@@ -126,3 +126,35 @@ final_results.to_csv("potential_interactions_nvda.csv", index=False)
 
 # ✅ Print Output
 print(f"Final potential interactions found for '{searched_ticker}':", final_results.shape[0])
+
+
+
+
+
+
+
+
+import numpy as np
+import pandas as pd
+from sentence_transformers import SentenceTransformer
+
+# Load interactions dataset
+interaction_file = "processed_interactions.csv"
+interactions_df = pd.read_csv(interaction_file, dtype=str)
+
+# Ensure Interaction_Text is available
+if "Interaction_Text" not in interactions_df.columns:
+    raise ValueError("Missing Interaction_Text column in dataset!")
+
+# Load pre-trained Sentence Transformer model
+model = SentenceTransformer("all-MiniLM-L6-v2")  # You can use any suitable model
+
+# Compute embeddings for all interactions
+interaction_texts = interactions_df["Interaction_Text"].fillna("").tolist()
+embeddings = model.encode(interaction_texts, convert_to_numpy=True)
+
+# Save embeddings & corresponding Interaction IDs
+np.save("interaction_embeddings.npy", embeddings)
+interactions_df["InteractionID"].to_csv("interaction_ids.csv", index=False)
+
+print(f"Stored {len(embeddings)} interaction embeddings successfully!")
