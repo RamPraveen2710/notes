@@ -135,26 +135,60 @@ print(f"Final potential interactions found for '{searched_ticker}':", final_resu
 
 
 import numpy as np
-import pandas as pd
-from sentence_transformers import SentenceTransformer
+from sklearn.metrics.pairwise import cosine_similarity
 
-# Load interactions dataset
-interaction_file = "processed_interactions.csv"
-interactions_df = pd.read_csv(interaction_file, dtype=str)
+# Load precomputed embeddings
+interaction_embeddings = np.load("interaction_subject_embeddings.npy")  # Shape (num_interactions, embedding_dim)
+interaction_ids = pd.read_csv("interaction_ids.csv")["InteractionID"].tolist()  # Load corresponding interaction IDs
 
-# Ensure Interaction_Text is available
-if "Interaction_Text" not in interactions_df.columns:
-    raise ValueError("Missing Interaction_Text column in dataset!")
+# Function to get the embedding of a given ticker
+def get_ticker_embedding(ticker):
+    """Generate a simple embedding for the ticker (or use a pre-trained model if available)."""
+    from sentence_transformers import SentenceTransformer
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+    return model.encode(ticker.lower())
 
-# Load pre-trained Sentence Transformer model
-model = SentenceTransformer("all-MiniLM-L6-v2")  # You can use any suitable model
+def get_related_interactions_using_embeddings(ticker, matched_df, remaining_interactions_df, external_participants):
+    """
+    Find interactions within ±15 days that contain external participants from Step 1 and
+    apply *semantic search* on interaction subjects using embeddings.
+    """
+    matched_interactions = set(matched_df["InteractionID"])
+    min_date = matched_df["StartTime"].min() - timedelta(days=15)
+    max_date = matched_df["StartTime"].max() + timedelta(days=15)
 
-# Compute embeddings for all interactions
-interaction_texts = interactions_df["Interaction_Text"].fillna("").tolist()
-embeddings = model.encode(interaction_texts, convert_to_numpy=True)
+    filtered_df = remaining_interactions_df[
+        (remaining_interactions_df["StartTime"] >= min_date) & 
+        (remaining_interactions_df["StartTime"] <= max_date)
+    ]
 
-# Save embeddings & corresponding Interaction IDs
-np.save("interaction_embeddings.npy", embeddings)
-interactions_df["InteractionID"].to_csv("interaction_ids.csv", index=False)
+    # Generate embedding for the query ticker
+    ticker_embedding = get_ticker_embedding(ticker).reshape(1, -1)
 
-print(f"Stored {len(embeddings)} interaction embeddings successfully!")
+    selected_interactions = set()
+    interaction_scores = {}
+
+    for _, row in filtered_df.iterrows():
+        external_ids = {fid for fid, emp in zip(row["FirmwideIDs"], row["EmployeeInd"]) if emp == "0"}
+        
+        if external_ids & external_participants:  # If external participant matches
+            interaction_id = row["InteractionID"]
+
+            # Fetch corresponding embedding
+            if interaction_id in interaction_ids:
+                idx = interaction_ids.index(interaction_id)
+                interaction_embedding = interaction_embeddings[idx].reshape(1, -1)
+                
+                # Compute cosine similarity
+                similarity_score = cosine_similarity(ticker_embedding, interaction_embedding)[0][0] * 100  # Convert to percentage
+                
+                if similarity_score >= 50:  # If similarity meets threshold
+                    selected_interactions.add(interaction_id)
+                    interaction_scores[interaction_id] = similarity_score  # Assign score based on similarity
+            
+    matched_df_step2 = remaining_interactions_df[remaining_interactions_df["InteractionID"].isin(selected_interactions)].copy()
+    matched_df_step2["Score"] = matched_df_step2["InteractionID"].map(interaction_scores)
+
+    remaining_interactions_df = remaining_interactions_df[~remaining_interactions_df["InteractionID"].isin(selected_interactions)].copy()
+    
+    return matched_df_step2, remaining_interactions_df
