@@ -1,0 +1,44 @@
+import pandas as pd
+
+# Load Interaction Data
+interaction_file = "New_q4_data.xlsx"
+interaction_df = pd.read_excel(interaction_file, dtype=str)
+
+# Remove Duplicate Rows
+interaction_df.drop_duplicates(inplace=True)
+
+# Fill Missing Values with Empty String
+interaction_df = interaction_df.fillna("")
+
+# Convert to lowercase, strip spaces
+ticker_columns = ["RIC", "TICKERDISCUSSED", "EMCM_TICKER"]
+for col in ticker_columns:
+    interaction_df[col] = interaction_df[col].str.lower().str.strip()
+
+# Define aggregation function
+def aggregate_interactions(group):
+    return pd.Series({
+        "StartTime": group["START TIME"].iloc[0],
+        "EndTime": group["END_TIME"].iloc[0],
+        "Subject": group["SUBJECT"].iloc[0],
+        "EMCM_Ticker": list(set().union(*group["EMCM_TICKER"].dropna().str.split(","))),  # Split & merge lists
+        "RIC": list(set().union(*group["RIC"].dropna().str.split(","))),  # Split & merge lists
+        "TickerDiscussed": list(set().union(*group["TICKERDISCUSSED"].dropna().str.split(","))),  # Split & merge lists
+        "TickerDescription": list(set(group["TICKER DESCRIPTION"].dropna())),  # Unique list
+        "Party": list(set(group["PARTY"].dropna())),  # Unique list
+        "PartySite": list(set(group["PARTY SITE"].dropna())),  # Unique list
+        "Participants": list(group["FIRMWIDE_ID"].dropna()),  # Collect all participants
+        "ParticipantNames": list(group["PARTICPANT_NAME"].dropna()),  # Collect all participant names
+        "EmployeeInd": list(group["EMPLOYEE IND"]),  # External/Internal indicator
+        "Roles": list(group["ROLE"]),  # INV, COR, etc.
+        "RoleTitles": list(group["RoleTitle"].dropna()),  # Unique role/title list
+    })
+
+# Apply aggregation
+aggregated_interaction_df = interaction_df.groupby("ID").apply(aggregate_interactions).reset_index()
+
+# Save the DataFrame into CSV file
+aggregated_interaction_df.to_csv("aggregated_interactions_V1.csv", index=False)
+
+# Print a sample
+print(aggregated_interaction_df.head())
