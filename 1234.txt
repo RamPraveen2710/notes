@@ -1,0 +1,21 @@
+Satisfaction Score = 
+SWITCH(
+    employee_pro_bono_survey[Overall Experience with the Program],
+    "Very Satisfied", 5,
+    "Somewhat Satisfied", 4,
+    "Neither Satisfied nor Dissatisfied", 3,
+    "Somewhat Dissatisfied", 2,
+    "Very Dissatisfied", 1,
+    BLANK()
+)
+
+
+Satisfied Employees Percentage = 
+VAR SatisfiedCount = 
+    CALCULATE(
+        COUNT(employee_pro_bono_survey[Overall Experience with the Program]), 
+        employee_pro_bono_survey[Satisfaction Score] >= 4
+    )
+VAR TotalResponses = COUNT(employee_pro_bono_survey[Overall Experience with the Program])
+
+RETURN DIVIDE(SatisfiedCount, TotalResponses, 0) * 100
