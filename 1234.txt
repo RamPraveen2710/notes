@@ -1,13 +1,14 @@
 Satisfaction Score = 
 SWITCH(
-    employee_pro_bono_survey[Overall Experience with the Program],
-    "Very Satisfied", 5,
-    "Somewhat Satisfied", 4,
-    "Neither Satisfied nor Dissatisfied", 3,
-    "Somewhat Dissatisfied", 2,
-    "Very Dissatisfied", 1,
+    TRUE(),
+    employee_pro_bono_survey[Overall Experience with the Program] = "Very Satisfied", 5,
+    employee_pro_bono_survey[Overall Experience with the Program] = "Somewhat Satisfied", 4,
+    employee_pro_bono_survey[Overall Experience with the Program] = "Neither Satisfied nor Dissatisfied", 3,
+    employee_pro_bono_survey[Overall Experience with the Program] = "Somewhat Dissatisfied", 2,
+    employee_pro_bono_survey[Overall Experience with the Program] = "Very Dissatisfied", 1,
     BLANK()
 )
+
 
 
 Satisfied Employees Percentage = 
