@@ -1,15 +1,4 @@
-Satisfaction Score = 
-SWITCH(
-    TRUE(),
-    employee_pro_bono_survey[Overall Experience with the Program] = "Very Satisfied", 5,
-    employee_pro_bono_survey[Overall Experience with the Program] = "Somewhat Satisfied", 4,
-    employee_pro_bono_survey[Overall Experience with the Program] = "Neither Satisfied nor Dissatisfied", 3,
-    employee_pro_bono_survey[Overall Experience with the Program] = "Somewhat Dissatisfied", 2,
-    employee_pro_bono_survey[Overall Experience with the Program] = "Very Dissatisfied", 1,
-    BLANK()
-)
-
-
+RETURN "€ " & FORMAT(Donations, "#,##0.00")
 
 Satisfied Employees Percentage = 
 VAR SatisfiedCount = 
