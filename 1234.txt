@@ -1,4 +1,6 @@
-RETURN "€ " & FORMAT(Donations, "#,##0.00")
+Total Pro-Bono Savings EUR = 
+VAR Savings = SUM(pro_bono_charity_evaluation[Total Savings])
+RETURN "€ " & FORMAT(Savings, "#,##0.00")
 
 Satisfied Employees Percentage = 
 VAR SatisfiedCount = 
