@@ -1,18 +1,26 @@
-Overall Delivery Score = 
-VAR TotalResponses = COUNT('TableName'[Overall Delivery of Solutions])
-VAR PositiveResponses = CALCULATE(
-    COUNT('TableName'[Overall Delivery of Solutions]), 
-    'TableName'[Overall Delivery of Solutions] IN {"Agree", "Strongly Agree"}
-)
-RETURN DIVIDE(PositiveResponses, TotalResponses, 0) * 100
+Adjusted Total Donations = 
+VAR IncreaseFactor = 1 + ('Donation Increase %'[Donation Increase % Value] / 100)
+RETURN SUM(donations[Total User Amount]) * IncreaseFactor
 
 
-Satisfied Employees Percentage = 
-VAR SatisfiedCount = 
-    CALCULATE(
-        COUNT(employee_pro_bono_survey[Overall Experience with the Program]), 
-        employee_pro_bono_survey[Satisfaction Score] >= 4
-    )
-VAR TotalResponses = COUNT(employee_pro_bono_survey[Overall Experience with the Program])
 
-RETURN DIVIDE(SatisfiedCount, TotalResponses, 0) * 100
+
+Adjusted Volunteer Hours = 
+VAR IncreaseFactor = 1 + ('Volunteer Hours Increase %'[Volunteer Hours Increase % Value] / 100)
+RETURN SUM(volunteer_hours[Hours Volunteered]) * IncreaseFactor
+
+Adjusted Children Impacted = 
+VAR IncreaseFactor = 1 + ('Donation Increase %'[Donation Increase % Value] / 100)
+RETURN SUM(partner_survey[Children Directly Impacted]) * IncreaseFactor
+
+
+
+Adjusted Cost Savings = 
+VAR IncreaseFactor = 1 + ('Volunteer Hours Increase %'[Volunteer Hours Increase % Value] / 100)
+RETURN SUM(pro_bono_charity_evaluation[Total Savings]) * IncreaseFactor
+
+
+
+Adjusted Employee Engagement = 
+VAR IncreaseFactor = 1 + ('Volunteer Hours Increase %'[Volunteer Hours Increase % Value] / 100)
+RETURN SUM(employee_pro_bono_survey[Employee Participation Rate]) * IncreaseFactor
