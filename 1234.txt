@@ -1,6 +1,11 @@
-Total Pro-Bono Savings EUR = 
-VAR Savings = SUM(pro_bono_charity_evaluation[Total Savings])
-RETURN "€ " & FORMAT(Savings, "#,##0.00")
+Overall Delivery Score = 
+VAR TotalResponses = COUNT('TableName'[Overall Delivery of Solutions])
+VAR PositiveResponses = CALCULATE(
+    COUNT('TableName'[Overall Delivery of Solutions]), 
+    'TableName'[Overall Delivery of Solutions] IN {"Agree", "Strongly Agree"}
+)
+RETURN DIVIDE(PositiveResponses, TotalResponses, 0) * 100
+
 
 Satisfied Employees Percentage = 
 VAR SatisfiedCount = 
