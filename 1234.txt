@@ -1,26 +1,33 @@
+Original Total Donations = SUM(donations[Total User Amount])
+
 Adjusted Total Donations = 
 VAR IncreaseFactor = 1 + ('Donation Increase %'[Donation Increase % Value] / 100)
-RETURN SUM(donations[Total User Amount]) * IncreaseFactor
+RETURN [Original Total Donations] * IncreaseFactor
 
 
+Original Total Volunteer Hours = SUM(volunteer_hours[Hours Volunteered])
 
-
-Adjusted Volunteer Hours = 
+Adjusted Total Volunteer Hours = 
 VAR IncreaseFactor = 1 + ('Volunteer Hours Increase %'[Volunteer Hours Increase % Value] / 100)
-RETURN SUM(volunteer_hours[Hours Volunteered]) * IncreaseFactor
+RETURN [Original Total Volunteer Hours] * IncreaseFactor
+
+
+Original Children Impacted = SUM(partner_survey[Children Directly Impacted])
 
 Adjusted Children Impacted = 
 VAR IncreaseFactor = 1 + ('Donation Increase %'[Donation Increase % Value] / 100)
-RETURN SUM(partner_survey[Children Directly Impacted]) * IncreaseFactor
+RETURN [Original Children Impacted] * IncreaseFactor
 
 
+Original Cost Savings = SUM(pro_bono_charity_evaluation[Total Savings])
 
 Adjusted Cost Savings = 
 VAR IncreaseFactor = 1 + ('Volunteer Hours Increase %'[Volunteer Hours Increase % Value] / 100)
-RETURN SUM(pro_bono_charity_evaluation[Total Savings]) * IncreaseFactor
+RETURN [Original Cost Savings] * IncreaseFactor
 
 
+Original Employee Engagement = SUM(employee_pro_bono_survey[Employee Participation Rate])
 
 Adjusted Employee Engagement = 
 VAR IncreaseFactor = 1 + ('Volunteer Hours Increase %'[Volunteer Hours Increase % Value] / 100)
-RETURN SUM(employee_pro_bono_survey[Employee Participation Rate]) * IncreaseFactor
+RETURN [Original Employee Engagement] * IncreaseFactor
