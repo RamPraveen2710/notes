@@ -1,0 +1,82 @@
+import pandas as pd
+import numpy as np
+import spacy
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load NLP model
+nlp = spacy.load("en_core_web_md")  # Use "en_core_web_lg" for better accuracy
+
+# Load interaction dataset
+interaction_file = "processed_interactions.csv"
+interactions_df = pd.read_csv(interaction_file, dtype=str)
+
+# Convert "Subject" column to string (handling NaNs)
+interactions_df["Subject"] = interactions_df["Subject"].fillna("").astype(str)
+
+def get_top_nlp_matches(ticker, interactions_df, threshold=0.4):
+    """Find interactions with subjects similar to the given ticker using NLP similarity."""
+    ticker_embedding = nlp(ticker).vector.reshape(1, -1)  # Convert ticker to embedding
+    
+    interaction_scores = {}
+    
+    for _, row in interactions_df.iterrows():
+        subject_embedding = nlp(row["Subject"]).vector.reshape(1, -1)  # Convert subject to embedding
+        similarity = cosine_similarity(ticker_embedding, subject_embedding)[0][0]  # Compute similarity
+        
+        if similarity > threshold:
+            interaction_scores[row["InteractionID"]] = similarity * 100  # Scale score to 100
+    
+    # Sort interactions by similarity score
+    matched_interactions = sorted(interaction_scores.items(), key=lambda x: x[1], reverse=True)
+    
+    # Convert to DataFrame
+    matched_df_nlp = interactions_df[interactions_df["InteractionID"].isin([x[0] for x in matched_interactions])].copy()
+    matched_df_nlp["Score"] = matched_df_nlp["InteractionID"].map(dict(matched_interactions))
+    
+    return matched_df_nlp
+
+# Run NLP-based matching
+searched_ticker = "NVDA"
+matched_df_nlp = get_top_nlp_matches(searched_ticker, interactions_df)
+
+# ✅ Print Output
+print(f"NLP matched interactions for '{searched_ticker}':", matched_df_nlp.shape[0])
+
+# Save to CSV for reference
+matched_df_nlp.to_csv(f"nlp_matched_interactions_{searched_ticker}.csv", index=False)
+
+
+
+
+import numpy as np
+from sklearn.metrics.pairwise import cosine_similarity
+
+# Load precomputed embeddings
+interaction_embeddings = np.load("interaction_embeddings.npy")  # Shape: (num_interactions, embedding_dim)
+interaction_ids = np.load("interaction_ids.npy")  # Shape: (num_interactions,)
+
+# Generate embedding for the searched ticker
+ticker_embedding = nlp(searched_ticker).vector.reshape(1, -1)
+
+# Compute similarity scores
+similarities = cosine_similarity(ticker_embedding, interaction_embeddings)[0]
+
+# Filter interactions with similarity > threshold
+threshold = 0.4
+filtered_indices = np.where(similarities > threshold)[0]
+filtered_scores = similarities[filtered_indices] * 100  # Scale to 100
+
+# Get matching interaction IDs
+matched_interactions = interaction_ids[filtered_indices]
+
+# Create DataFrame for matched interactions
+matched_df_emb = pd.DataFrame({
+    "InteractionID": matched_interactions,
+    "Score": filtered_scores
+})
+
+# ✅ Print Output
+print(f"Embedding-based matched interactions for '{searched_ticker}':", matched_df_emb.shape[0])
+
+# Save results
+matched_df_emb.to_csv(f"embedding_matched_interactions_{searched_ticker}.csv", index=False)
