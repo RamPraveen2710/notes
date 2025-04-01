@@ -1,0 +1,32 @@
+flowchart TD
+    A[Load Interactions & Readership Data] --> B[Apply Date Filter: Aug-Oct 2024]
+    B --> C{Identify NVDA Interest}
+    
+    C -->|From Readership| D[Clients who read NVDA]
+    C -->|From Interactions| E[Clients who discussed NVDA]
+    C -->|From Keywords| F[Clients with NVDA keywords]
+    
+    D --> G[Combine All NVDA-Interested Clients]
+    E --> G
+    F --> G
+    
+    G --> H[Build Client Interaction Timelines]
+    H --> I[Map Explicit NVDA Mentions]
+    
+    I --> J[Calculate Deterministic Scores]
+    J --> K{Pre-score ≥ 0.3?}
+    
+    K -->|No| L[Discard Interaction]
+    K -->|Yes| M[Add to Potential NVDA Interactions]
+    
+    M --> N[Group by Client]
+    N --> O[Create Optimized Batches]
+    O --> P[Process with LLM in Batches]
+    
+    P --> Q[Combine Pre-scores & LLM Scores]
+    Q --> R{Final Score ≥ 0.5?}
+    
+    R -->|No| S[Exclude from Results]
+    R -->|Yes| T[Include in Final Report]
+    
+    T --> U[Generate Ranked NVDA Interaction Report]
