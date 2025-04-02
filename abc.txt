@@ -30,3 +30,37 @@ flowchart TD
     R -->|Yes| T[Include in Final Report]
     
     T --> U[Generate Ranked NVDA Interaction Report]
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+The idea behind interaction timelines is to understand the sequence of meetings/events that a client (FirmwideId) has before and after showing interest in NVDA (or any other ticker).
+
+💡 Example:
+Step 1: A client reads about NVDA on August 15, 2024.
+
+Step 2: The client has a meeting with a research analyst on August 18, 2024.
+
+Step 3: The same client joins another meeting on September 5, 2024, but NVDA is not explicitly mentioned.
+
+👉 Question: Should the meetings on August 18 and September 5 be considered as NVDA-related?
+👉 Answer: If NVDA was discussed previously, there's a high probability that the client continued the discussion in later interactions, even if NVDA was not explicitly mentioned.
+
+This is why we construct a timeline for each NVDA-interested client and analyze how interactions evolve over time.
