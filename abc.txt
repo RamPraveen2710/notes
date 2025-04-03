@@ -135,3 +135,40 @@ Step 3: The same client joins another meeting on September 5, 2024, but NVDA is 
 👉 Answer: If NVDA was discussed previously, there's a high probability that the client continued the discussion in later interactions, even if NVDA was not explicitly mentioned.
 
 This is why we construct a timeline for each NVDA-interested client and analyze how interactions evolve over time.
+
+
+
+
+
+### **📌 Expected JSON Output Format**
+⚠️ **Important:** You **must** return the output **strictly in valid JSON format**. No additional text, no explanations, no headings—**only JSON.**  
+
+The response must follow this exact format:  
+```json
+{
+    "ticker": "NVDA",
+    "top_interactions": [
+        {
+            "InteractionID": 1,
+            "ConfidenceScore": 0.95,
+            "Summary": "Investor directly discussed potential investment in NVDA."
+        },
+        {
+            "InteractionID": 3,
+            "ConfidenceScore": 0.90,
+            "Summary": "Analyst provided insights into NVDA’s Q3 performance."
+        },
+        {
+            "InteractionID": 2,
+            "ConfidenceScore": 0.75,
+            "Summary": "Investor discussed AI-driven tech stocks, potentially relevant to NVDA."
+        }
+    ],
+    "excluded_interactions": [
+        {
+            "InteractionID": 4,
+            "Reason": "Unrelated Microsoft collaboration discussion."
+        }
+    ]
+}
+
