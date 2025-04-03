@@ -92,6 +92,29 @@ You will analyze the following **financial interactions** and determine their re
 
 
 
+data = [
+    [1, "2024-09-10 10:00", "2024-09-10 11:00", "Client discussion on investment trends", "FW_1001", 0, "John Doe", "Investor", "NVDA", "Client discussed potential investment in NVDA."],
+    [2, "2024-09-12 14:00", "2024-09-12 15:00", "Tech industry outlook", "FW_1002", 0, "Jane Smith", "Investor", None, "General discussion on AI-driven tech stocks."],
+    [3, "2024-09-15 09:30", "2024-09-15 10:30", "Follow-up on NVDA interest", "FW_1001", 1, "Mike Analyst", "Analyst", "NVDA", "Analyst provided insights into NVDA’s Q3 performance."],
+    [4, "2024-09-17 11:00", "2024-09-17 12:00", "Meeting with Microsoft executive", "FW_1003", 0, "David Corp", "Corporate", "MSFT", "Discussed future collaboration between firms."],
+    [5, "2024-09-18 15:30", "2024-09-18 16:00", "Investor call - Tesla outlook", "FW_1004", 0, "Emma Brown", "Investor", "TSLA", "Investor evaluating Tesla's expansion strategy."],
+    [6, "2024-09-20 10:00", "2024-09-20 10:45", "General market trends", "FW_1005", 0, "Sophia Lee", "Investor", None, "Discussion on upcoming market corrections."],
+    [7, "2024-09-21 13:00", "2024-09-21 14:00", "NVDA Earnings discussion", "FW_1001", 1, "MoreJosh", "Analyst", "NVDA", "Deep dive into NVDA's quarterly earnings report."],
+    [8, "2024-09-22 16:00", "2024-09-22 17:00", "Client meeting - Microsoft focus", "FW_1002", 1, "WieSmith", "Analyst", "MSFT", "Investor looking into MSFT cloud infrastructure."],
+    [9, "2024-09-23 09:00", "2024-09-23 10:00", "Future of AI stocks", "FW_1006", 0, "Liam Investor", "Investor", None, "Looking at AI investments but no specific ticker mentioned."],
+    [10, "2024-09-25 12:30", "2024-09-25 13:30", "Tesla supply chain discussion", "FW_1004", 1, "JoneAddin", "Analyst", "TSLA", "Analyst reviewed Tesla's supply chain issues."],
+    [11, "2024-09-27 14:00", "2024-09-27 15:00", "Corporate strategy meeting", "FW_1007", 0, "Noah CEO", "Corporate", None, "Strategy meeting—no investment discussion."],
+    [12, "2024-09-28 10:00", "2024-09-28 11:00", "Nvidia vs AMD comparison", "FW_1001", 1, "Mike Analyst", "Analyst", "NVDA", "Compared NVDA and AMD’s market positioning."],
+    [13, "2024-09-30 13:00", "2024-09-30 14:00", "AI growth projections", "FW_1008", 0, "Olivia Tech", "Investor", None, "General discussion on AI sector growth."],
+    [14, "2024-10-01 09:30", "2024-10-01 10:30", "Apple new product impact", "FW_1009", 0, "Emma Brown", "Investor", "AAPL", "Discussion on impact of Apple’s new iPhone sales."],
+    [15, "2024-10-02 11:00", "2024-10-02 12:00", "NVDA deep tech insights", "FW_1001", 1, "MoreJosh", "Analyst", "NVDA", "Research team shared deeper technical insights into NVDA."],
+    [16, "2024-10-03 15:00", "2024-10-03 16:00", "Elon Musk Tesla interview analysis", "FW_1010", 0, "James Fund", "Investor", "TSLA", "Investor discussion on Elon Musk's statements about Tesla."],
+    [17, "2024-10-05 10:00", "2024-10-05 11:00", "Follow-up NVDA research", "FW_1001", 1, "MoreJosh", "Analyst", "NVDA", "Follow-up research session for previous discussions."],
+    [18, "2024-10-06 12:00", "2024-10-06 13:00", "Apple investment opportunities", "FW_1011", 0, "Sophia Wealth", "Investor", "AAPL", "Exploring potential investment in Apple stocks."],
+    [19, "2024-10-07 14:30", "2024-10-07 15:30", "Tesla vs Rivian comparison", "FW_1012", 0, "Daniel Market", "Investor", "TSLA", "Compared Tesla and Rivian’s market growth."],
+    [20, "2024-10-08 16:00", "2024-10-08 17:00", "Future outlook on Microsoft cloud services", "FW_1013", 0, "Ella Digital", "Investor", "MSFT", "Exploring MSFT Azure growth trends."]
+]
+
 
 
 
