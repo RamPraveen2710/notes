@@ -41,6 +41,54 @@ flowchart TD
 
 
 
+### **📢 Context: Understanding Financial Interactions**
+In the financial industry, investors, analysts, and corporate executives frequently engage in meetings and discussions about various stocks and market trends. These discussions, known as **interactions**, contain valuable insights into a participant's interests, investment decisions, and company evaluations.  
+
+Each **interaction** consists of multiple attributes, including:  
+- **Timestamp:** When the discussion took place.  
+- **Participants:** The people involved in the meeting (e.g., Investors, Analysts, Corporate Executives).  
+- **Subject & Notes:** The main topics discussed during the meeting.  
+- **Stock Ticker Mentioned (if any):** Whether a specific company stock (e.g., "NVDA" for NVIDIA) was explicitly discussed.  
+
+However, not all interactions explicitly mention a stock ticker. Some discussions are **indirectly related** to a stock without directly naming it. For example:  
+- A discussion on **“AI chips”** may still be relevant to NVIDIA (NVDA) since NVIDIA is a major AI chip manufacturer.  
+- A discussion about the **“semiconductor market”** might involve NVIDIA but not mention the company directly.  
+
+### **🔍 Objective: Find Relevant Interactions for a Given Stock (e.g., NVDA)**
+Your task is to analyze a set of **meeting interactions** and determine **which ones are relevant to the given stock ticker (NVDA).**  
+
+#### **🛠 How to Determine Relevance?**
+1️⃣ **Explicit Mentions (High Confidence)**
+   - If `TickerDiscussed = NVDA`, **this interaction is highly relevant** (confidence score ~1.0).  
+
+2️⃣ **Context-Based Relevance (Moderate Confidence)**
+   - If NVDA is **not explicitly mentioned**, analyze the `Subject` and `Notes`.  
+   - Look for **indirect references** (e.g., "AI chips," "GPUs," "semiconductors").  
+   - If contextually relevant, assign a confidence score between **0.7 - 0.9**.  
+
+3️⃣ **General Tech Discussions (Low Confidence)**
+   - If the discussion is about **tech industry trends** or **AI investments** without specific stock references, it may have **weak relevance** (confidence **0.3 - 0.6**).  
+
+4️⃣ **Irrelevant Interactions (Discard)**
+   - If there is **no connection to NVDA**, discard the interaction (confidence **<0.3**).  
+
+#### **⏳ Time-Based Context (Interaction Timeline)**
+- If a **client (FirmwideID) previously discussed NVDA**, then **subsequent interactions within 30 days** may still be related—even if NVDA is not mentioned.  
+
+---
+
+### **🔢 Example Input Data**
+You will analyze the following **financial interactions** and determine their relevance to **NVDA (NVIDIA).**  
+
+```json
+{
+    "ticker": "NVDA",
+    "interactions": [
+        {"InteractionID": 1, "StartTime": "2024-09-10 10:00", "EndTime": "2024-09-10 11:00", "Subject": "Client discussion on investment trends", "FirmwideID": "FW_1001", "EmpInd": 0, "ParticipantName": "John Doe", "Role": "Investor", "TickerDiscussed": "NVDA", "Notes": "Client discussed potential investment in NVDA."},
+        {"InteractionID": 2, "StartTime": "2024-09-12 14:00", "EndTime": "2024-09-12 15:00", "Subject": "Tech industry outlook", "FirmwideID": "FW_1002", "EmpInd": 0, "ParticipantName": "Jane Smith", "Role": "Investor", "TickerDiscussed": null, "Notes": "General discussion on AI-driven tech stocks."},
+        {"InteractionID": 3, "StartTime": "2024-09-15 09:30", "EndTime": "2024-09-15 10:30", "Subject": "Follow-up on NVDA interest", "FirmwideID": "FW_1001", "EmpInd": 1, "ParticipantName": "Mike Analyst", "Role": "Analyst", "TickerDiscussed": "NVDA", "Notes": "Analyst provided insights into NVDA’s Q3 performance."}
+    ]
+}
 
 
 
